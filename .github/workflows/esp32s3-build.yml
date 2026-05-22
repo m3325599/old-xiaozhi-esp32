@@ -4,25 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       board_type:
-        description: 'ESP32-S3 board type to build (leave empty for all)'
+        description: 'ESP32-S3 board type to build (bread-compact-wifi, esp-box-3, m5stack-core-s3, atoms3r-echo-base, kevin-box-1)'
         required: false
-        default: ''
+        default: 'bread-compact-wifi'
 
 env:
   IDF_VERSION: "v5.3"
   IDF_PATH: ${{ github.workspace }}/esp-idf
   TARGET: "esp32s3"
+  BOARD_NAME: "bread-compact-wifi"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   esp32s3-build:
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        board: ['bread-compact-wifi', 'esp-box-3', 'm5stack-core-s3', 'atoms3r-echo-base', 'kevin-box-1']
-      fail-fast: false
     
-    name: Build ${{ matrix.board }}
+    name: Build ${{ env.BOARD_NAME }}
     
     steps:
       - uses: actions/checkout@v4
@@ -61,25 +58,25 @@ jobs:
 
       - name: Setup and Build
         run: |
-          echo "Building ${{ matrix.board }} for ${{ env.TARGET }}..."
+          echo "Building ${{ env.BOARD_NAME }} for ${{ env.TARGET }}..."
           
           # 设置目标芯片
           idf.py set-target ${{ env.TARGET }}
           
           # 执行构建
-          idf.py -DBOARD_NAME="${{ matrix.board }}" build
+          idf.py -DBOARD_NAME="${{ env.BOARD_NAME }}" build
           
-          echo "✅ ${{ matrix.board }} build completed"
+          echo "✅ ${{ env.BOARD_NAME }} build completed"
       
       - name: Merge binary
         run: |
-          echo "Creating merged binary for ${{ matrix.board }}..."
+          echo "Creating merged binary for ${{ env.BOARD_NAME }}..."
           idf.py merge-bin
       
       - name: Create flash instructions
         run: |
-          cat > flash_${{ matrix.board }}.txt << 'EOF'
-          # XiaoZhi ESP32-S3 ${{ matrix.board }} Flash Instructions
+          cat > flash_${{ env.BOARD_NAME }}.txt << 'EOF'
+          # XiaoZhi ESP32-S3 ${{ env.BOARD_NAME }} Flash Instructions
           
           ## Method 1: One-click flash (recommended)
           esptool.py -p <PORT> -b 460800 write_flash 0 merged-binary.bin
@@ -100,7 +97,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.board }}-firmware
+          name: ${{ env.BOARD_NAME }}-firmware
           path: |
             build/merged-binary.bin
             build/xiaozhi.bin
@@ -108,12 +105,12 @@ jobs:
             build/partition_table/partition-table.bin
             build/ota_data_initial.bin
             sdkconfig
-            flash_${{ matrix.board }}.txt
+            flash_${{ env.BOARD_NAME }}.txt
           retention-days: 7
       
       - name: Build summary
         run: |
-          echo "📦 Build Summary for ${{ matrix.board }}"
+          echo "📦 Build Summary for ${{ env.BOARD_NAME }}"
           echo "Target: ${{ env.TARGET }}"
           echo "Status: ✅ Success"
           
@@ -130,55 +127,38 @@ jobs:
   create-release:
     needs: esp32s3-build
     runs-on: ubuntu-22.04
-    if: github.event_name == 'workflow_dispatch' && contains(github.event.inputs.board_type, 'release')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.board_type == 'release'
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download all firmware
+      - name: Download bread-compact-wifi firmware
         uses: actions/download-artifact@v4
         with:
-          pattern: "*-firmware"
-          path: artifacts/
+          name: ${{ env.BOARD_NAME }}-firmware
+          path: artifacts/${{ env.BOARD_NAME }}/
       
-      - name: Create release packages
+      - name: Create release package
         run: |
-          version="${GITHUB_REF#refs/tags/v}"
-          echo "Creating release packages for version $version..."
+          version="release-${GITHUB_RUN_NUMBER}"
+          echo "Creating release package for ${{ env.BOARD_NAME }}..."
           
-          mkdir -p release
+          mkdir -p release/${{ env.BOARD_NAME }}
+          cp artifacts/${{ env.BOARD_NAME }}/* release/${{ env.BOARD_NAME }}/
+          
           cd release
-          
-          # 为每个板子创建独立包
-          for artifact in ../artifacts/*-firmware; do
-            board=$(basename "$artifact" | sed 's/-firmware$//')
-            echo "📦 Packaging $board..."
-            
-            mkdir -p "$board"
-            cp "$artifact"/* "$board"/ 2>/dev/null || true
-            
-            # 创建zip包
-            zip -r "../xiaozhi-${board}-v${version}.zip" "$board"
-            rm -rf "$board"
-          done
-          
-          # 创建完整版包
-          for artifact in ../artifacts/*-firmware; do
-            board=$(basename "$artifact" | sed 's/-firmware$//')
-            cp -r "$artifact" "${board}-${version}"
-          done
-          zip -r "../xiaozhi-esp32s3-complete-v${version}.zip" *-${version}
-          
+          zip -r "../xiaozhi-${{ env.BOARD_NAME }}-${version}.zip" ${{ env.BOARD_NAME }}
           cd ..
-          echo "✅ Release packages created:"
+          
+          echo "✅ Release package created: xiaozhi-${{ env.BOARD_NAME }}-${version}.zip"
           ls -la *.zip
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: "xiaozhi*.zip"
-          name: "XiaoZhi ESP32-S3 v${{ github.ref_name }}"
-          tag_name: "${{ github.ref }}"
+          files: "xiaozhi-${{ env.BOARD_NAME }}-*.zip"
+          name: "XiaoZhi ${{ env.BOARD_NAME }} Build ${{ github.run_number }}"
+          tag_name: "${{ env.BOARD_NAME }}-build-${{ github.run_number }}"
           generate_release_notes: true
           draft: false
           prerelease: false
