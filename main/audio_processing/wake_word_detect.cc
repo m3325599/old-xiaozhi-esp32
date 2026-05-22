@@ -19,8 +19,8 @@ WakeWordDetect::WakeWordDetect()
 }
 
 WakeWordDetect::~WakeWordDetect() {
-    if (afe_data_ != nullptr) {
-        afe_iface_->destroy(afe_data_);
+    if (afe_data_ != nullptr && afe_iface_ != nullptr) {
+        const_cast<esp_afe_sr_iface_t*>(afe_iface_)->destroy(afe_data_);
     }
 
     if (wake_word_encode_task_stack_ != nullptr) {
