@@ -48,8 +48,8 @@ void AudioProcessor::Initialize(int channels, bool reference) {
 }
 
 AudioProcessor::~AudioProcessor() {
-    if (afe_data_ != nullptr) {
-        afe_iface_->destroy(afe_data_);
+    if (afe_data_ != nullptr && afe_iface_ != nullptr) {
+        const_cast<esp_afe_sr_iface_t*>(afe_iface_)->destroy(afe_data_);
     }
     vEventGroupDelete(event_group_);
 }
