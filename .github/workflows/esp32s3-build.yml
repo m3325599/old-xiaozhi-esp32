@@ -38,23 +38,23 @@ jobs:
           git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
           cd ${{ env.IDF_PATH }}
           ./install.sh ${{ env.TARGET }}
-      
+
       - name: Export IDF environment
         run: |
           cd ${{ env.IDF_PATH }}
           . ./export.sh
           echo "PATH=$PATH" >> $GITHUB_ENV
-      
+
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
           pip3 install -r scripts/p3_tools/requirements.txt
-      
+
       - name: Cache build
         uses: actions/cache@v3
         with:
           path: ${{ github.workspace }}/build
-          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ matrix.board }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
+          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
 
         - name: Setup and Build
           run: |
@@ -67,12 +67,12 @@ jobs:
             idf.py -DBOARD_NAME="weiwu-x1-wifi" build
             
             echo "✅ weiwu-x1-wifi build completed"
-      
+
         - name: Merge binary
           run: |
             echo "Creating merged binary for weiwu-x1-wifi..."
             idf.py merge-bin
-      
+
         - name: Create flash instructions
           run: |
             cat > flash_weiwu-x1-wifi.txt << 'EOF'
@@ -93,7 +93,7 @@ jobs:
           - Windows: COM3, COM4, etc.
           - macOS: /dev/cu.usbserial-*, /dev/cu.usbmodem*
           EOF
-      
+
         - name: Upload firmware
           uses: actions/upload-artifact@v4
           with:
