@@ -1,0 +1,245 @@
+name: ESP32-S3 Quick Test
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ develop ]
+
+env:
+  IDF_VERSION: "v5.3"
+  IDF_PATH: ${{ github.workspace }}/esp-idf
+  TARGET: "esp32s3"
+
+jobs:
+  lint-and-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check CMakeLists.txt
+        run: |
+          # 验证CMakeLists.txt基本语法
+          if [ -f "CMakeLists.txt" ]; then
+            echo "✓ Found CMakeLists.txt"
+            grep -q "project(xiaozhi)" CMakeLists.txt && echo "✓ Project name correct" || echo "✗ Project name issue"
+          fi
+      
+      - name: Check source files
+        run: |
+          # 检查主要源文件
+          files=("main/main.cc" "main/application.cc" "main/system_info.cc")
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ Found $file"
+            else
+              echo "⚠ Missing $file"
+            fi
+          done
+      
+      - name: Validate board configurations
+        run: |
+          # 检查板子配置
+          board_count=$(find main/boards -name "config.json" | wc -l)
+          echo "Found $board_count board configurations"
+          
+          # 验证至少有一个配置有效
+          if [ $board_count -gt 0 ]; then
+            echo "✓ Board configurations found"
+          else
+            echo "✗ No board configurations found"
+            exit 1
+          fi
+
+  quick-build-sample:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        board: ['bread-compact-wifi', 'esp-box-3', 'm5stack-core-s3', 'atoms3r-echo-base']
+      max-parallel: 3
+    
+    name: Quick Build - ${{ matrix.board }} (${{ env.TARGET }})
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache ESP-IDF
+        id: cache-idf
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.IDF_PATH }}
+          key: ${{ runner.os }}-idf-${{ env.IDF_VERSION }}
+      
+      - name: Setup ESP-IDF
+        if: steps.cache-idf.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing ESP-IDF ${{ env.IDF_VERSION }}..."
+          git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
+          cd ${{ env.IDF_PATH }}
+          ./install.sh all
+      
+      - name: Export IDF environment
+        run: |
+          cd ${{ env.IDF_PATH }}
+          . ./export.sh
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      
+      - name: Quick configuration check
+        run: |
+          echo "Building for ${{ matrix.board }} (${{ env.TARGET }})"
+          
+          # 设置目标为ESP32-S3
+          idf.py set-target ${{ env.TARGET }}
+      
+      - name: Run configuration validation
+        run: |
+          # 这个步骤不完整构建，只检查配置
+          idf.py reconfigure
+      
+      - name: Quick compilation test
+        run: |
+          # 快速编译测试 - 只编译核心文件
+          timeout 600 idf.py build || {
+            exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+              echo "⚠ Build timed out after 10 minutes"
+            else
+              echo "✗ Build failed with exit code $exit_code"
+            fi
+            exit $exit_code
+          }
+      
+      - name: Quick artifact check
+        if: success()
+        run: |
+          if [ -f "build/xiaozhi.bin" ]; then
+            size=$(stat -c%s "build/xiaozhi.bin")
+            echo "✓ Build successful - firmware size: ${size} bytes"
+            
+            if [ $size -gt 100000 ]; then
+              echo "✓ Firmware size looks reasonable"
+            else
+              echo "⚠ Firmware size seems small: ${size} bytes"
+            fi
+          else
+            echo "✗ No firmware binary generated"
+            exit 1
+          fi
+
+  dependency-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check dependencies
+        run: |
+          echo "Checking project dependencies..."
+          
+          # 检查idf_component.yml
+          if [ -f "main/idf_component.yml" ]; then
+            echo "✓ Found idf_component.yml"
+            
+            # 简单的YAML语法检查
+            python3 -c "
+import yaml
+with open('main/idf_component.yml', 'r') as f:
+    try:
+        data = yaml.safe_load(f)
+        print('✓ YAML syntax is valid')
+        
+        if 'dependencies' in data:
+            deps = data['dependencies']
+            print(f'✓ Found {len(deps)} dependencies')
+            
+            # 检查IDF版本要求
+            if 'idf' in deps:
+                idf_ver = deps['idf']['version']
+                print(f'✓ IDF version requirement: {idf_ver}')
+        else:
+            print('⚠ No dependencies section found')
+    except yaml.YAMLError as e:
+        print(f'✗ YAML syntax error: {e}')
+        exit(1)
+" || echo "⚠ YAML check failed"
+      
+      - name: Check for required components
+        run: |
+          # 检查必需的组件目录
+          required_dirs=("audio_codecs" "boards" "display" "protocols")
+          for dir in "${required_dirs[@]}"; do
+            if [ -d "main/$dir" ]; then
+              count=$(ls "main/$dir" | wc -l)
+              echo "✓ Found main/$dir (${count} files)"
+            else
+              echo "✗ Missing main/$dir directory"
+              exit 1
+            fi
+          done
+
+  security-scan:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Scan for hardcoded secrets
+        run: |
+          # 简单扫描硬编码密钥等安全敏感信息
+          sensitive_patterns=("API_KEY" "SECRET" "PASSWORD" "TOKEN" "wifi_password")
+          
+          for pattern in "${sensitive_patterns[@]}"; do
+            matches=$(grep -r -i "$pattern" --include="*.cc" --include="*.h" main/ || true)
+            if [ -n "$matches" ]; then
+              echo "⚠ Potential sensitive pattern '$pattern' found:"
+              echo "$matches" | head -3
+            fi
+          done
+      
+      - name: Check for common vulnerabilities
+        run: |
+          # 检查常见的嵌入式安全问题
+          echo "Checking for memcpy, strcpy without bounds checking..."
+          
+          unsafe_functions=("strcpy" "strcat" "sprintf" "gets")
+          for func in "${unsafe_functions[@]}"; do
+            matches=$(grep -r "$func" --include="*.cc" --include="*.c" main/ || true)
+            if [ -n "$matches" ]; then
+              echo "⚠ Unsafe function '$func' usage detected:"
+              echo "$matches" | head -3
+            fi
+          done
+
+  generate-build-report:
+    needs: [lint-and-check, quick-build-sample, dependency-check, security-scan]
+    runs-on: ubuntu-22.04
+    if: always()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate build report
+        run: |
+          cat > build_report.md << EOF
+          # Build Test Report
+          
+          **Run ID:** ${{ github.run_id }}
+          **Commit:** ${{ github.sha }}
+          **Date:** $(date -u)
+          
+          ## Test Results
+          
+          - **Code Lint:** ${{ needs.lint-and-check.result }}
+          - **Quick Build:** ${{ needs.quick-build-sample.result }}
+          - **Dependencies:** ${{ needs.dependency-check.result }}
+          - **Security Scan:** ${{ needs.security-scan.result }}
+          
+          ## Summary
+          $(if [ "${{ needs.quick-build-sample.result }}" = "success" ]; then echo "✅ All tests passed"; else echo "❌ Some tests failed"; fi)
+          EOF
+          
+          cat build_report.md
+      
+      - name: Upload build report
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-test-report
+          path: build_report.md

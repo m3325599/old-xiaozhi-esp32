@@ -1,0 +1,362 @@
+name: Release All Boards
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.6.0)'
+        required: true
+        default: ''
+      build_all:
+        description: 'Build all supported boards'
+        type: boolean
+        default: true
+  schedule:
+    - cron: '0 12 * * 1'  # Weekly on Monday at 12:00 UTC
+
+env:
+  IDF_VERSION: "v5.3"
+  IDF_PATH: ${{ github.workspace }}/esp-idf
+
+jobs:
+  discover-boards:
+    runs-on: ubuntu-22.04
+    outputs:
+      boards: ${{ steps.discover.outputs.boards }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Discover available boards
+        id: discover
+        run: |
+          python3 -c "
+import os
+import json
+from pathlib import Path
+
+boards = []
+boards_dir = Path('main/boards')
+
+# 查找所有包含config.json的板子目录
+for board_dir in boards_dir.iterdir():
+    if board_dir.is_dir():
+        config_file = board_dir / 'config.json'
+        if config_file.exists():
+            try:
+                with open(config_file) as f:
+                    config = json.load(f)
+                boards.append({
+                    'name': board_dir.name,
+                    'target': config['target'],
+                    'config_path': str(config_file)
+                })
+            except Exception as e:
+                print(f'Error reading {config_file}: {e}')
+
+print(f'Found {len(boards)} boards:')
+for board in boards:
+    print(f'  - {board[\"name\"]} ({board[\"target\"]})')
+
+# 输出JSON数组
+boards_json = json.dumps(boards)
+print(f'boards={boards_json}')
+" > boards_output.txt
+          
+          cat boards_output.txt
+          echo "boards=$(grep 'boards=' boards_output.txt | cut -d'=' -f2-)" >> $GITHUB_OUTPUT
+
+  setup-idf-environment:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup ESP-IDF Environment
+        run: |
+          # 安装ESP-IDF
+          git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
+          cd ${{ env.IDF_PATH }}
+          ./install.sh all
+          
+          # 创建环境脚本
+          cat > /tmp/idf_env.sh << 'EOF'
+          export IDF_PATH='${{ env.IDF_PATH }}'
+          source \$IDF_PATH/export.sh
+          EOF
+          
+          echo "IDF environment ready"
+      
+      - name: Upload IDF environment
+        uses: actions/upload-artifact@v3
+        with:
+          name: idf-environment
+          path: |
+            ${{ env.IDF_PATH }}
+            /tmp/idf_env.sh
+          retention-days: 1
+
+  build-all-boards:
+    needs: [discover-boards, setup-idf-environment]
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        board: ${{ fromJson(needs.discover-boards.outputs.boards) }}
+      fail-fast: false
+    
+    name: Build ${{ matrix.board.name }} (${{ matrix.board.target }})
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download IDF environment
+        uses: actions/download-artifact@v3
+        with:
+          name: idf-environment
+          path: ${{ github.workspace }}
+      
+      - name: Setup IDF environment
+        run: |
+          source ${{ github.workspace }}/idf_env.sh
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --user -r scripts/p3_tools/requirements.txt
+      
+      - name: Setup board configuration
+        run: |
+          source ${{ github.workspace }}/idf_env.sh
+          
+          # 设置目标芯片
+          idf.py set-target ${{ matrix.board.target }}
+          
+          # 读取板子配置
+          python3 -c "
+import json
+
+# 读取config.json
+with open('main/boards/${{ matrix.board.name }}/config.json') as f:
+    config = json.load(f)
+
+print('Board configuration:')
+print(f'Target: {config[\"target\"]}')
+print(f'Builds: {len(config[\"builds\"])} variant(s)')
+
+# 为每个构建变体创建单独的工作流程
+for i, build in enumerate(config['builds']):
+    print(f'Build {i+1}: {build[\"name\"]}')
+    for sdk_config in build.get('sdkconfig_append', []):
+      with open('sdkconfig.defaults', 'a') as f:
+        f.write(f'{sdk_config}\\n')
+"
+      
+      - name: Build firmware
+        run: |
+          source ${{ github.workspace }}/idf_env.sh
+          
+          # 清理之前的构建
+          idf.py fullclean
+          
+          # 构建当前板子
+          idf.py -DBOARD_NAME="${{ matrix.board.name }}" build
+      
+      - name: Merge binary files
+        run: |
+          source ${{ github.workspace }}/idf_env.sh
+          idf.py merge-bin
+      
+      - name: Extract build information
+        run: |
+          # 尝试从app描述中提取信息
+          python3 -c "
+import os
+import struct
+import json
+from datetime import datetime
+
+version = 'unknown'
+
+# 从CMakeLists.txt读取版本
+with open('CMakeLists.txt') as f:
+    for line in f:
+        if 'set(PROJECT_VER' in line:
+            version = line.split('\"')[1]
+            break
+
+# 创建构建信息
+build_info = {
+    'board': '${{ matrix.board.name }}',
+    'target': '${{ matrix.board.target }}',
+    'version': version,
+    'build_time': datetime.utcnow().isoformat() + 'Z',
+    'commit': '${{ github.sha }}',
+    'run_id': '${{ github.run_id }}',
+    'build_success': True
+}
+
+with open('build_info.json', 'w') as f:
+    json.dump(build_info, f, indent=2)
+
+print('Build information:')
+with open('build_info.json') as f:
+    print(f.read())
+"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-${{ matrix.board.name }}-${{ matrix.board.target }}
+          path: |
+            build/merged-binary.bin
+            build/xiaozhi.bin
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            build/ota_data_initial.bin
+            sdkconfig
+            build_info.json
+          retention-days: 30
+      
+      - name: Generate flash script
+        run: |
+          cat > flash_${{ matrix.board.name }}.sh << 'EOF'
+          #!/bin/bash
+          # Flash script for ${{ matrix.board.name }} - ${{ matrix.board.target }}
+          # Usage: ./flash_${{ matrix.board.name }}.sh /dev/ttyUSB0
+          
+          PORT=\$1
+          if [ -z "\$PORT" ]; then
+            echo "Usage: \$0 <serial_port>"
+            echo "Example: \$0 /dev/ttyUSB0"
+            exit 1
+          fi
+          
+          esptool.py -p \$PORT -b 460800 write_flash \\
+            0x0 bootloader.bin \\
+            0x8000 partition-table.bin \\
+            0xd000 ota_data_initial.bin \\
+            0x100000 xiaozhi.bin
+          EOF
+          
+          cat > flash_${{ matrix.board.name }}.bat << 'EOF'
+          @echo off
+          REM Flash script for ${{ matrix.board.name }} - ${{ matrix.board.target }}
+          REM Usage: flash_${{ matrix.board.name }}.bat COM3
+          
+          set PORT=%1
+          if "%PORT%"=="" (
+            echo Usage: %0 ^<COM_port^>
+            echo Example: %0 COM3
+            exit /b 1
+          )
+          
+          esptool.py -p %PORT% -b 460800 write_flash ^
+            0x0 bootloader.bin ^
+            0x8000 partition-table.bin ^
+            0xd000 ota_data_initial.bin ^
+            0x100000 xiaozhi.bin
+          EOF
+      
+      - name: Upload flash scripts
+        uses: actions/upload-artifact@v3
+        with:
+          name: flash-scripts-${{ matrix.board.name }}
+          path: |
+            flash_${{ matrix.board.name }}.sh
+            flash_${{ matrix.board.name }}.bat
+          retention-days: 30
+
+  create-release-package:
+    needs: build-all-boards
+    runs-on: ubuntu-22.04
+    if: inputs.version != ''
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create release directory
+        run: |
+          mkdir -p release
+          version="${{ inputs.version }}"
+          
+          # 创建发布说明
+          cat > release/RELEASE_NOTES.md << EOF
+          # 小智 AI 聊天机器人固件发布 v$version
+          
+          ## 发布时间
+          $(date '+%Y-%m-%d %H:%M:%S UTC')
+          
+          ## 支持的设备
+          $(for artifact in $(gh run view ${{ github.run_id }} --json databaseId -q '.databaseId'); do echo "- $(echo $artifact | grep firmware- | cut -d- -f2-)"; done)
+          
+          ## 刷写说明
+          1. 下载对应设备的固件包
+          2. 解压文件
+          3. 运行flash脚本或手动刷写
+          
+          ## 手动刷写命令
+          esptool.py -p <PORT> -b 460800 write_flash 0x0 bootloader.bin 0x8000 partition-table.bin 0xd000 ota_data_initial.bin 0x100000 xiaozhi.bin
+          EOF
+      
+      - name: Download all artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 下载所有固件和脚本
+          gh run download ${{ github.run_id }} -D artifacts/
+      
+      - name: Package release
+        run: |
+          version="${{ inputs.version }}"
+          cd release
+          
+          # 创建完整发布包
+          zip -r "xiaozhi-complete-v$version.zip" ./
+          
+          # 为每个板子创建单独包
+          for board in $(ls ../artifacts/ | grep firmware- | sed 's/firmware-//'); do
+            mkdir -p "tmp_$board"
+            
+            # firmware
+            cp "../artifacts/firmware-$board/merged-binary.bin" "tmp_$board/"
+            cp "../artifacts/firmware-$board/xiaozhi.bin" "tmp_$board/"
+            
+            # scripts  
+            cp "../artifacts/flash-scripts-$board/flash_$board.sh" "tmp_$board/flash.sh"
+            cp "../artifacts/flash-scripts-$board/flash_$board.bat" "tmp_$board/flash.bat"
+            
+            # package
+            cd "tmp_$board"
+            zip -r "../xiaozhi-$board-v$version.zip" ./
+            cd ..
+            rm -rf "tmp_$board"
+          done
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "小智 AI v${{ inputs.version }}"
+          tag_name: "${{ inputs.version }}"
+          files: release/*.zip
+          body_path: release/RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+
+  update-release-page:
+    needs: create-release-package
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Update README with latest version
+        run: |
+          # 自动更新README中的版本信息
+          version="${{ inputs.version }}"
+          sed -i "s|v[0-9]*\.[0-9]*\.[0-9]*_|v$version_|g" README.md
+          
+          # 提交更改
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add README.md
+          git commit -m "docs: update version to v$version" || echo "No changes to commit"
+          git push || echo "No push needed"

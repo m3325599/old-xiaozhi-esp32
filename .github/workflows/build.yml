@@ -1,0 +1,250 @@
+name: ESP32-S3 Firmware Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      board_type:
+        description: 'ESP32-S3 board type to build (leave empty for all ESP32-S3 boards)'
+        required: false
+        default: ''
+
+env:
+  IDF_VERSION: "v5.3"
+  IDF_PATH: ${{ github.workspace }}/esp-idf
+
+jobs:
+  setup:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Discover ESP32-S3 boards
+        id: discover-boards
+        run: |
+          # 使用helper脚本只发现ESP32-S3板子
+          python3 scripts/github_actions_helper.py discover --target esp32s3 --json > s3_boards.json
+          echo "Available ESP32-S3 boards:"
+          cat s3_boards.json | python3 -m json.tool
+      
+      - name: Generate build matrix
+        id: set-matrix
+        run: |
+          # 如果用户指定了板子类型，只构建那个板子
+          if [ -n "${{ inputs.board_type }}" ]; then
+            echo "matrix={\"include\":[{\"board_type\":\"${{ inputs.board_type }}\",\"idf_target\":\"esp32s3\"}]}" >> $GITHUB_OUTPUT
+          else
+            # 生成ESP32-S3专用构建矩阵
+            python3 scripts/github_actions_helper.py matrix --target esp32s3 > matrix.json
+            
+            matrix_content=$(cat matrix.json)
+            echo "matrix=$matrix_content" >> $GITHUB_OUTPUT
+            
+            echo "Generated ESP32-S3 build matrix:"
+            echo "$matrix_content" | python3 -m json.tool || echo "$matrix_content"
+            
+            # 验证至少有一个ESP32-S3板子
+            if [ "$(echo "$matrix_content" | grep -o '"board_type"' | wc -l)" -eq 0 ]; then
+              echo "❌ No ESP32-S3 boards found!"
+              exit 1
+            fi
+          fi
+
+  setup-idf:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Cache ESP-IDF
+        id: cache-idf
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.IDF_PATH }}
+          key: ${{ runner.os }}-idf-${{ env.IDF_VERSION }}
+      
+      - name: Setup ESP-IDF
+        if: steps.cache-idf.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing ESP-IDF ${{ env.IDF_VERSION }}..."
+          git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
+          cd ${{ env.IDF_PATH }}
+          ./install.sh all
+      
+      - name: Export IDF environment
+        run: |
+          cd ${{ env.IDF_PATH }}
+          . ./export.sh
+          echo "IDF_PATH=${{ env.IDF_PATH }}" >> $GITHUB_ENV
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      
+      - name: Upload IDF setup
+        uses: actions/upload-artifact@v3
+        with:
+          name: idf-env
+          path: ${{ env.IDF_PATH }}
+          retention-days: 1
+
+  build-firmware:
+    needs: [setup, setup-idf]
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      fail-fast: false
+    
+    name: ESP32-S3 ${{ matrix.board_type }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download IDF environment
+        uses: actions/download-artifact@v3
+        with:
+          name: idf-env
+          path: ${{ env.IDF_PATH }}
+      
+      - name: Export IDF environment
+        run: |
+          cd ${{ env.IDF_PATH }}
+          . ./export.sh
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --user -r ${{ github.workspace }}/scripts/p3_tools/requirements.txt
+          pip3 install pyyaml  # 为helper脚本添加YAML支持
+      
+      - name: Cache build directory
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/build
+          key: ${{ runner.os }}-build-${{ matrix.board_type }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ matrix.board_type }}-
+      
+      - name: Configure project for ${{ matrix.board_type }}
+        run: |
+          idf.py set-target ${{ matrix.idf_target }}
+          
+          # 为特定板子添加配置
+          case "${{ matrix.board_type }}" in
+            "m5stack-core-s3"|"atoms3r-echo-base"|"lilygo-t-circle-s3")
+              echo "CONFIG_OLED_SSD1306_128X64=y" >> sdkconfig.defaults
+              ;;
+            "bread-compact-wifi")
+              echo "CONFIG_OLED_SSD1306_128X32=y" >> sdkconfig.defaults  
+              ;;
+          esac
+      
+      - name: Build firmware
+        run: |
+          # 设置 board type 编译宏
+          idf.py -DBOARD_NAME="${{ matrix.board_type }}" build
+      
+      - name: Merge binary
+        run: |
+          idf.py merge-bin
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware-${{ matrix.board_type }}
+          path: |
+            build/merged-binary.bin
+            build/xiaozhi.bin
+            build/bootloader/
+            build/partition_table/
+            sdkconfig
+          retention-days: 7
+      
+      - name: Generate build info
+        run: |
+          cat > build-info-${{ matrix.board_type }}.json << EOF
+          {
+            "board_type": "${{ matrix.board_type }}",
+            "idf_target": "${{ matrix.idf_target }}",
+            "version": "$(grep 'set(PROJECT_VER' CMakeLists.txt | sed 's/.*"\(.*\)".*/\1/')",
+            "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit_sha": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}",
+            "run_id": "${{ github.run_id }}"
+          }
+          EOF
+      
+      - name: Upload build info
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-info-${{ matrix.board_type }}
+          path: build-info-${{ matrix.board_type }}.json
+
+  create-release:
+    needs: build-firmware
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          pattern: firmware-*
+          path: artifacts/
+      
+      - name: Download build info
+        uses: actions/download-artifact@v3
+        with:
+          pattern: build-info-*
+          path: build-info/
+      
+      - name: Create release package
+        run: |
+          mkdir -p release-pkg
+          version="${GITHUB_REF#refs/tags/v}"
+          
+          for board_dir in artifacts/firmware-*; do
+            if [ -d "$board_dir" ]; then
+              board_name=$(basename "$board_dir" | sed 's/firmware-//')
+              mkdir -p "release-pkg/v${version}_${board_name}"
+              
+              # Copy firmware files
+              cp "$board_dir/merged-binary.bin" "release-pkg/v${version}_${board_name}/"
+              cp "$board_dir/xiaozhi.bin" "release-pkg/v${version}_${board_name}/"
+              
+              # Copy build info
+              if [ -f "build-info/build-info-${board_name}.json" ]; then
+                cp "build-info/build-info-${board_name}.json" "release-pkg/v${version}_${board_name}/info.json"
+              fi
+            fi
+          done
+      
+      - name: Create zip package
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          cd release-pkg
+          zip -r "../xiaozhi-release-v${version}.zip" ./
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: xiaozhi-release-v*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  cleanup:
+    needs: [build-firmware, create-release]
+    runs-on: ubuntu-22.04
+    if: always()
+    
+    steps:
+      - name: Cleanup workspace
+        run: |
+          echo "Build completed. Cleaning up..."

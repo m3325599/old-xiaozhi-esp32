@@ -1,0 +1,203 @@
+name: ESP32-S3 Only Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      board_type:
+        description: 'Specific ESP32-S3 board to build'
+        required: false
+        default: ''
+
+env:
+  IDF_VERSION: "v5.3"
+  IDF_PATH: ${{ github.workspace }}/esp-idf
+  TARGET: "esp32s3"
+
+jobs:
+  s3-build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          - board_type: "bread-compact-wifi"
+            display_name: "基础WiFi版"
+          - board_type: "esp-box-3" 
+            display_name: "ESP-BOX-3"
+          - board_type: "m5stack-core-s3"
+            display_name: "M5Stack CoreS3"
+          - board_type: "atoms3r-echo-base"
+            display_name: "AtomS3R Echo底座"
+          - board_type: "kevin-box-1"
+            display_name: "Kevin Box V1"
+      fail-fast: false
+    
+    name: ESP32-S3 ${{ matrix.board_type }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Cache ESP-IDF
+        id: cache-idf
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.IDF_PATH }}
+          key: ${{ runner.os }}-idf-${{ env.IDF_VERSION }}
+      
+      - name: Setup ESP-IDF
+        if: steps.cache-idf.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing ESP-IDF ${{ env.IDF_VERSION }} for ${{ env.TARGET }}..."
+          git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
+          cd ${{ env.IDF_PATH }}
+          ./install.sh ${{ env.TARGET }}
+      
+      - name: Export IDF environment
+        run: |
+          cd ${{ env.IDF_PATH }}
+          . ./export.sh
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install --user pyyaml
+      
+      - name: Build ${{ matrix.board_type }}
+        run: |
+          echo "Building ${{ matrix.display_name }} (${{ matrix.board_type }}) for ${{ env.TARGET }}..."
+          
+          # 设置目标
+          idf.py set-target ${{ env.TARGET }}
+          
+          # 构建
+          idf.py -DBOARD_NAME="${{ matrix.board_type }}" build
+          
+          echo "✅ Build for ${{ matrix.board_type }} completed successfully"
+      
+      - name: Merge binary
+        run: |
+          echo "Merging binary for ${{ matrix.board_type }}..."
+          idf.py merge-bin
+      
+      - name: Create flash info
+        run: |
+          cat > flash_${{ matrix.board_type }}.txt << EOF
+          # ${{ matrix.display_name }} (${{ matrix.board_type }}) Flash Instructions
+          
+          ## Automatic Flash
+          bash flash_${{ matrix.board_type }}.sh <SERIAL_PORT>
+          
+          ## Manual Flash Command
+          esptool.py -p <PORT> -b 460800 write_flash \\
+            0x0 bootloader.bin \\
+            0x8000 partition-table.bin \\
+            0xd000 ota_data_initial.bin \\
+            0x100000 xiaozhi.bin
+            
+          ## One-Click Flash (Merged)
+          esptool.py -p <PORT> -b 460800 write_flash 0 merged-binary.bin
+          EOF
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.board_type }}-firmware
+          path: |
+            build/merged-binary.bin
+            build/xiaozhi.bin
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            build/ota_data_initial.bin
+            sdkconfig
+            flash_${{ matrix.board_type }}.txt
+          retention-days: 30
+      
+      - name: Build summary
+        run: |
+          echo "📦 ${{ matrix.display_name }} Build Summary"
+          echo "Board: ${{ matrix.board_type }}"
+          echo "Target: ${{ env.TARGET }}"
+          echo "Success: ✅"
+          
+          if [ -f "build/xiaozhi.bin" ]; then
+            size=$(stat -c%s "build/xiaozhi.bin")
+            echo "Firmware size: ${size} bytes"
+          fi
+          
+          if [ -f "build/merged-binary.bin" ]; then
+            size=$(stat -c%s "build/merged-binary.bin")  
+            echo "Merged binary size: ${size} bytes"
+          fi
+
+  create-release:
+    needs: s3-build
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          pattern: "*-firmware"
+          path: artifacts/
+      
+      - name: Create release assets
+        run: |
+          version="${GITHUB_REF#refs/tags/v}"
+          mkdir -p release
+          
+          # 创建完整的ESP32-S3发布包
+          cd release
+          
+          # 为每个板子创建单独目录
+          for artifact in ../artifacts/*-firmware; do
+            board=$(basename "$artifact" | sed 's/-firmware$//')
+            mkdir -p "${board}-v${version}"
+            
+            # 复制固件文件
+            cp "$artifact"/* "${board}-v${version}/" 2>/dev/null || true
+            
+            # 创建zip包
+            zip -r "../xiaozhi-${board}-v${version}.zip" "${board}-v${version}"
+          done
+          
+          # 创建完整版发布包
+          zip -r "../xiaozhi-esp32s3-complete-v${version}.zip" */
+          
+          cd ..
+          
+          echo "📦 Release packages created:"
+          ls -la *.zip
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "xiaozhi-*.zip"
+          name: "XiaoZhi ESP32-S3 v${{ github.ref_name }}"
+          tag_name: "${{ github.ref }}"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  notify:
+    needs: [s3-build, create-release]
+    runs-on: ubuntu-22.04
+    if: always()
+    
+    steps:
+      - name: Build Status
+        run: |
+          if [ "${{ needs.s3-build.result }}" = "success" ]; then
+            echo "🎉 ESP32-S3 builds completed successfully!"
+            echo "✅ All ${{ strategy.matrix.include | length }} boards built successfully"
+          else
+            echo "❌ Some ESP32-S3 builds failed"
+            exit 1
+          fi
