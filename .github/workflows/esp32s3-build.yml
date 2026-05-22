@@ -51,7 +51,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --user -r scripts/p3_tools/requirements.txt
+          pip3 install -r scripts/p3_tools/requirements.txt
       
       - name: Cache build
         uses: actions/cache@v3
