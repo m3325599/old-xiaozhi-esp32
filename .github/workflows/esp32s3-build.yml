@@ -19,7 +19,7 @@ jobs:
   esp32s3-build:
     runs-on: ubuntu-22.04
     
-    name: Build ${{ env.BOARD_NAME }}
+    name: Build bread-compact-wifi
     
     steps:
       - uses: actions/checkout@v4
@@ -58,25 +58,25 @@ jobs:
 
       - name: Setup and Build
         run: |
-          echo "Building ${{ env.BOARD_NAME }} for ${{ env.TARGET }}..."
+          echo "Building bread-compact-wifi for ${{ env.TARGET }}..."
           
           # 设置目标芯片
           idf.py set-target ${{ env.TARGET }}
           
           # 执行构建
-          idf.py -DBOARD_NAME="${{ env.BOARD_NAME }}" build
+          idf.py -DBOARD_NAME="bread-compact-wifi" build
           
-          echo "✅ ${{ env.BOARD_NAME }} build completed"
+          echo "✅ bread-compact-wifi build completed"
       
       - name: Merge binary
         run: |
-          echo "Creating merged binary for ${{ env.BOARD_NAME }}..."
+          echo "Creating merged binary for bread-compact-wifi..."
           idf.py merge-bin
       
       - name: Create flash instructions
         run: |
-          cat > flash_${{ env.BOARD_NAME }}.txt << 'EOF'
-          # XiaoZhi ESP32-S3 ${{ env.BOARD_NAME }} Flash Instructions
+          cat > flash_bread-compact-wifi.txt << 'EOF'
+          # XiaoZhi ESP32-S3 bread-compact-wifi Flash Instructions
           
           ## Method 1: One-click flash (recommended)
           esptool.py -p <PORT> -b 460800 write_flash 0 merged-binary.bin
@@ -97,7 +97,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BOARD_NAME }}-firmware
+          name: bread-compact-wifi-firmware
           path: |
             build/merged-binary.bin
             build/xiaozhi.bin
@@ -105,12 +105,12 @@ jobs:
             build/partition_table/partition-table.bin
             build/ota_data_initial.bin
             sdkconfig
-            flash_${{ env.BOARD_NAME }}.txt
+            flash_bread-compact-wifi.txt
           retention-days: 7
       
       - name: Build summary
         run: |
-          echo "📦 Build Summary for ${{ env.BOARD_NAME }}"
+          echo "📦 Build Summary for bread-compact-wifi"
           echo "Target: ${{ env.TARGET }}"
           echo "Status: ✅ Success"
           
@@ -135,30 +135,30 @@ jobs:
       - name: Download bread-compact-wifi firmware
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.BOARD_NAME }}-firmware
-          path: artifacts/${{ env.BOARD_NAME }}/
+          name: bread-compact-wifi-firmware
+          path: artifacts/bread-compact-wifi/
       
       - name: Create release package
         run: |
           version="release-${GITHUB_RUN_NUMBER}"
-          echo "Creating release package for ${{ env.BOARD_NAME }}..."
+          echo "Creating release package for bread-compact-wifi..."
           
-          mkdir -p release/${{ env.BOARD_NAME }}
-          cp artifacts/${{ env.BOARD_NAME }}/* release/${{ env.BOARD_NAME }}/
+          mkdir -p release/bread-compact-wifi
+          cp artifacts/bread-compact-wifi/* release/bread-compact-wifi/
           
           cd release
-          zip -r "../xiaozhi-${{ env.BOARD_NAME }}-${version}.zip" ${{ env.BOARD_NAME }}
+          zip -r "../xiaozhi-bread-compact-wifi-${version}.zip" bread-compact-wifi
           cd ..
           
-          echo "✅ Release package created: xiaozhi-${{ env.BOARD_NAME }}-${version}.zip"
+          echo "✅ Release package created: xiaozhi-bread-compact-wifi-${version}.zip"
           ls -la *.zip
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: "xiaozhi-${{ env.BOARD_NAME }}-*.zip"
-          name: "XiaoZhi ${{ env.BOARD_NAME }} Build ${{ github.run_number }}"
-          tag_name: "${{ env.BOARD_NAME }}-build-${{ github.run_number }}"
+          files: "xiaozhi-bread-compact-wifi-*.zip"
+          name: "XiaoZhi bread-compact-wifi Build ${{ github.run_number }}"
+          tag_name: "bread-compact-wifi-build-${{ github.run_number }}"
           generate_release_notes: true
           draft: false
           prerelease: false
