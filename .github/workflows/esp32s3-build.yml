@@ -8,7 +8,7 @@ on:
         required: false
         default: 'weiwu-x1-wifi'
 
-  env:
+env:
   IDF_VERSION: "v5.3"
   IDF_PATH: ${{ github.workspace }}/esp-idf
   TARGET: "esp32s3"
@@ -19,7 +19,7 @@ jobs:
   esp32s3-build:
     runs-on: ubuntu-22.04
     
-    name: Build bread-compact-wifi
+    name: Build weiwu-x1-wifi
     
     steps:
       - uses: actions/checkout@v4
@@ -56,36 +56,36 @@ jobs:
           path: ${{ github.workspace }}/build
           key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
 
-        - name: Setup and Build
-          run: |
-            echo "Building weiwu-x1-wifi for ${{ env.TARGET }}..."
-            
-            # 设置目标芯片
-            idf.py set-target ${{ env.TARGET }}
-            
-            # 执行构建
-            idf.py -DBOARD_NAME="weiwu-x1-wifi" build
-            
-            echo "✅ weiwu-x1-wifi build completed"
+      - name: Setup and Build
+        run: |
+          echo "Building weiwu-x1-wifi for ${{ env.TARGET }}..."
+          
+          # 设置目标芯片
+          idf.py set-target ${{ env.TARGET }}
+          
+          # 执行构建
+          idf.py -DBOARD_NAME="weiwu-x1-wifi" build
+          
+          echo "✅ weiwu-x1-wifi build completed"
 
-        - name: Merge binary
-          run: |
-            echo "Creating merged binary for weiwu-x1-wifi..."
-            idf.py merge-bin
+      - name: Merge binary
+        run: |
+          echo "Creating merged binary for weiwu-x1-wifi..."
+          idf.py merge-bin
 
-        - name: Create flash instructions
-          run: |
-            cat > flash_weiwu-x1-wifi.txt << 'EOF'
-            # XiaoZhi ESP32-S3 weiwu-x1-wifi Flash Instructions
+      - name: Create flash instructions
+        run: |
+          cat > flash_weiwu-x1-wifi.txt << 'EOF'
+          # XiaoZhi ESP32-S3 weiwu-x1-wifi Flash Instructions
           
           ## Method 1: One-click flash (recommended)
           esptool.py -p <PORT> -b 460800 write_flash 0 merged-binary.bin
           
           ## Method 2: Flash partitions separately
-          esptool.py -p <PORT> -b 460800 write_flash \
-            0x0 bootloader.bin \
-            0x8000 partition-table.bin \
-            0xd000 ota_data_initial.bin \
+          esptool.py -p <PORT> -b 460800 write_flash \\
+            0x0 bootloader.bin \\
+            0x8000 partition-table.bin \\
+            0xd000 ota_data_initial.bin \\
             0x100000 xiaozhi.bin
           
           Replace <PORT> with your serial port:
@@ -94,25 +94,25 @@ jobs:
           - macOS: /dev/cu.usbserial-*, /dev/cu.usbmodem*
           EOF
 
-        - name: Upload firmware
-          uses: actions/upload-artifact@v4
-          with:
-            name: weiwu-x1-wifi-firmware
-            path: |
-              build/merged-binary.bin
-              build/xiaozhi.bin
-              build/bootloader/bootloader.bin
-              build/partition_table/partition-table.bin
-              build/ota_data_initial.bin
-              sdkconfig
-              flash_weiwu-x1-wifi.txt
-            retention-days: 7
-      
-        - name: Build summary
-          run: |
-            echo "📦 Build Summary for weiwu-x1-wifi"
-            echo "Target: ${{ env.TARGET }}"
-            echo "Status: ✅ Success"
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: weiwu-x1-wifi-firmware
+          path: |
+            build/merged-binary.bin
+            build/xiaozhi.bin
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            build/ota_data_initial.bin
+            sdkconfig
+            flash_weiwu-x1-wifi.txt
+          retention-days: 7
+
+      - name: Build summary
+        run: |
+          echo "📦 Build Summary for weiwu-x1-wifi"
+          echo "Target: ${{ env.TARGET }}"
+          echo "Status: ✅ Success"
           
           if [ -f "build/xiaozhi.bin" ]; then
             size=$(stat -c%s "build/xiaozhi.bin")
