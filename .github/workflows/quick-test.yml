@@ -10,6 +10,7 @@ env:
   IDF_VERSION: "v5.3"
   IDF_PATH: ${{ github.workspace }}/esp-idf
   TARGET: "esp32s3"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint-and-check:
@@ -239,7 +240,7 @@ with open('main/idf_component.yml', 'r') as f:
           cat build_report.md
       
       - name: Upload build report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-test-report
           path: build_report.md

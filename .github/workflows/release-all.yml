@@ -17,6 +17,7 @@ on:
 env:
   IDF_VERSION: "v5.3"
   IDF_PATH: ${{ github.workspace }}/esp-idf
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   discover-boards:
@@ -87,7 +88,7 @@ print(f'boards={boards_json}')
           echo "IDF environment ready"
       
       - name: Upload IDF environment
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: idf-environment
           path: |
@@ -109,7 +110,7 @@ print(f'boards={boards_json}')
       - uses: actions/checkout@v4
       
       - name: Download IDF environment
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: idf-environment
           path: ${{ github.workspace }}
@@ -204,7 +205,7 @@ with open('build_info.json') as f:
 "
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ matrix.board.name }}-${{ matrix.board.target }}
           path: |
@@ -258,7 +259,7 @@ with open('build_info.json') as f:
           EOF
       
       - name: Upload flash scripts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: flash-scripts-${{ matrix.board.name }}
           path: |
