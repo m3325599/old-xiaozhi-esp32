@@ -171,14 +171,11 @@ public:
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
         volume_down_button_(VOLUME_DOWN_BUTTON_GPIO) {
         
-#ifdef CONFIG_OLED_SSD1306_128X32
-        InitializeDisplayI2c();
-        InitializeSsd1306Display();
-#elif CONFIG_OLED_SSD1306_128X64  
+#if defined(CONFIG_OLED_SSD1306_128X32) || defined(CONFIG_OLED_SSD1306_128X64)
         InitializeDisplayI2c();
         InitializeSsd1306Display();
 #else
-        // Devices like weiwu-x1-wifi don't have display - skip initialization
+        // No OLED configured - skip display initialization for devices like weiwu-x1-wifi
         display_ = nullptr;
 #endif
         
