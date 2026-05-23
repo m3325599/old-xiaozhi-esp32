@@ -36,7 +36,7 @@ jobs:
         working-directory: old-xiaozhi-esp32
         run: |
           echo "🧹 Full clean to avoid component version conflicts..."
-          rm -rf managed_components build
+          rm -rf managed_components build dependencies.lock
           echo "✅ Clean complete"
       
       - name: Setup and Build
