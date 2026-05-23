@@ -20,6 +20,10 @@ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
 
 CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=y
 
+# Audio and Wake Word Detection
+CONFIG_USE_AUDIO_PROCESSOR=y
+CONFIG_USE_WAKE_WORD_DETECT=y
+
 # Board configuration
 CONFIG_BOARD_TYPE_WEIWU_X1_WIFI=y
 # Disable OLED display since this device doesn't have one
