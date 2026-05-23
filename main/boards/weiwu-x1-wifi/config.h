@@ -11,17 +11,17 @@
 
 #ifdef AUDIO_I2S_METHOD_SIMPLEX
 
-// 硅基数字麦克风 - 根据原理图配置
-#define AUDIO_I2S_MIC_GPIO_WS GPIO_NUM_2    // MIC_WS (Word Select)
-#define AUDIO_I2S_MIC_GPIO_SCK GPIO_NUM_38  // MIC_SCK (Serial Clock)
-#define AUDIO_I2S_MIC_GPIO_DIN GPIO_NUM_39  // MIC_DATA (Data Input)
+// 麦克风配置 - 恢复为已知可工作的配置
+#define AUDIO_I2S_MIC_GPIO_WS GPIO_NUM_42    // MIC_WS (Word Select)
+#define AUDIO_I2S_MIC_GPIO_SCK GPIO_NUM_40   // MIC_SCK (Serial Clock)
+#define AUDIO_I2S_MIC_GPIO_DIN GPIO_NUM_2    // MIC_DATA (Data Input)
 
-// D类功放(9db) - 根据原理图配置
-#define AUDIO_I2S_SPK_GPIO_BCLK GPIO_NUM_10  // BCLK (Bit Clock)
-#define AUDIO_I2S_SPK_GPIO_LRCK GPIO_NUM_11  // LRCK (Left/Right Clock)
-#define AUDIO_I2S_SPK_GPIO_SD_MODE GPIO_NUM_12  // SD_MODE (Shutdown Mode)
-#define AUDIO_I2S_SPK_GPIO_MUTE GPIO_NUM_13     // MUTE (Mute Control)
-#define SYSTEM_LED_GPIO GPIO_NUM_13             // 使用MUTE引脚作为系统LED
+// 功放配置 - 使用标准配置
+#define AUDIO_I2S_SPK_GPIO_DOUT GPIO_NUM_15  // Speaker Data Out
+#define AUDIO_I2S_SPK_GPIO_BCLK GPIO_NUM_16  // BCLK (Bit Clock)
+#define AUDIO_I2S_SPK_GPIO_LRCK GPIO_NUM_17  // LRCK (Left/Right Clock)
+#define AUDIO_I2S_SPK_GPIO_EN GPIO_NUM_18    // Enable
+#define SYSTEM_LED_GPIO GPIO_NUM_18           // 系统LED
 
 #else
 
