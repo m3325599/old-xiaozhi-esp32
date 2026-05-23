@@ -36,7 +36,13 @@ jobs:
           echo "Installing ESP-IDF ${{ env.IDF_VERSION }} for ${{ env.TARGET }}..."
           git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
           cd ${{ env.IDF_PATH }}
-          ./install.sh ${{ env.TARGET }}
+          ./install.sh
+
+      - name: Install ESP-IDF tools
+        run: |
+          echo "Installing ESP-IDF tools..."
+          cd ${{ env.IDF_PATH }}
+          python3 tools/idf_tools.py install
 
       - name: Export IDF environment
         run: |
