@@ -141,9 +141,14 @@ jobs:
     needs: esp32s3-build
     runs-on: ubuntu-22.04
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      actions: read
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
         
       - name: Download weiwu-x1-wifi firmware
         uses: actions/download-artifact@v4
