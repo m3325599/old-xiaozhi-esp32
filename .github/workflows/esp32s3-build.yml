@@ -38,17 +38,23 @@ jobs:
           cd ${{ env.IDF_PATH }}
           ./install.sh
 
-      - name: Install ESP-IDF tools
-        run: |
-          echo "Installing ESP-IDF tools..."
-          cd ${{ env.IDF_PATH }}
-          python3 tools/idf_tools.py install
-
       - name: Export IDF environment
         run: |
           cd ${{ env.IDF_PATH }}
           . ./export.sh
           echo "PATH=$PATH" >> $GITHUB_ENV
+
+      - name: Install ESP-IDF Python environment
+        run: |
+          echo "Installing ESP-IDF Python environment..."
+          cd ${{ env.IDF_PATH }}
+          python3 tools/idf_tools.py install-python-env
+
+      - name: Install ESP-IDF tools
+        run: |
+          echo "Installing ESP-IDF tools..."
+          cd ${{ env.IDF_PATH }}
+          python3 tools/idf_tools.py install
 
       - name: Install Python dependencies
         run: |
