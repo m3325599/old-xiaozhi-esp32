@@ -157,7 +157,7 @@ jobs:
           echo "Creating release package for weiwu-x1-wifi..."
           
           mkdir -p release/weiwu-x1-wifi
-          cp artifacts/weiwu-x1-wifi/* release/weiwu-x1-wifi/
+          cp -r artifacts/weiwu-x1-wifi/* release/weiwu-x1-wifi/
           
           cd release
           zip -r "../xiaozhi-weiwu-x1-wifi-${version}.zip" weiwu-x1-wifi
