@@ -48,6 +48,9 @@ jobs:
         run: |
           echo "Building weiwu-x1-wifi for ${{ env.TARGET }}..."
           
+          # Source IDF environment to make idf.py available
+          . /opt/esp/idf/export.sh
+          
           # 设置目标芯片
           idf.py set-target ${{ env.TARGET }}
           
@@ -60,6 +63,8 @@ jobs:
         working-directory: old-xiaozhi-esp32
         run: |
           echo "Creating merged binary for weiwu-x1-wifi..."
+          # Source IDF environment
+          . /opt/esp/idf/export.sh
           idf.py merge-bin
       
       - name: Create flash instructions
