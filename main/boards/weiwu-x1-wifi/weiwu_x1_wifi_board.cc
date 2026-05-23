@@ -35,7 +35,7 @@ protected:
     }
 
     virtual Led* GetLed() override {
-        static SingleLed led(GPIO_NUM_18); // SYSTEM_LED_GPIO matches log
+        static SingleLed led(SYSTEM_LED_GPIO); // Use system LED GPIO from config
         return &led;
     }
 
