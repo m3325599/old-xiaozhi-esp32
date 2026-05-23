@@ -2,11 +2,6 @@ name: ESP32-S3 Build Only
 
 on:
   workflow_dispatch:
-    inputs:
-      board_type:
-        description: 'ESP32-S3 board type to build (weiwu-x1-wifi, bread-compact-wifi, esp-box-3, m5stack-core-s3, atoms3r-echo-base, kevin-box-1)'
-        required: false
-        default: 'weiwu-x1-wifi'
 
 env:
   TARGET: "esp32s3"
@@ -145,7 +140,7 @@ jobs:
   create-release:
     needs: esp32s3-build
     runs-on: ubuntu-22.04
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.board_type == 'release'
+    if: github.event_name == 'workflow_dispatch'
     
     steps:
       - uses: actions/checkout@v4
