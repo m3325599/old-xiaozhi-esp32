@@ -125,12 +125,16 @@ private:
                 volume = 100;
             }
             codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
+            if (GetDisplay()) {
+                GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
+            }
         });
 
         volume_up_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(100);
-            GetDisplay()->ShowNotification(Lang::Strings::MAX_VOLUME);
+            if (GetDisplay()) {
+                GetDisplay()->ShowNotification(Lang::Strings::MAX_VOLUME);
+            }
         });
 
         volume_down_button_.OnClick([this]() {
@@ -140,12 +144,16 @@ private:
                 volume = 0;
             }
             codec->SetOutputVolume(volume);
-            GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
+            if (GetDisplay()) {
+                GetDisplay()->ShowNotification(Lang::Strings::VOLUME + std::to_string(volume));
+            }
         });
 
         volume_down_button_.OnLongPress([this]() {
             GetAudioCodec()->SetOutputVolume(0);
-            GetDisplay()->ShowNotification(Lang::Strings::MUTED);
+            if (GetDisplay()) {
+                GetDisplay()->ShowNotification(Lang::Strings::MUTED);
+            }
         });
     }
 
@@ -162,8 +170,18 @@ public:
         touch_button_(TOUCH_BUTTON_GPIO),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
         volume_down_button_(VOLUME_DOWN_BUTTON_GPIO) {
+        
+#ifdef CONFIG_OLED_SSD1306_128X32
         InitializeDisplayI2c();
         InitializeSsd1306Display();
+#elif CONFIG_OLED_SSD1306_128X64  
+        InitializeDisplayI2c();
+        InitializeSsd1306Display();
+#else
+        // Devices like weiwu-x1-wifi don't have display - skip initialization
+        display_ = nullptr;
+#endif
+        
         InitializeButtons();
         InitializeIot();
     }
