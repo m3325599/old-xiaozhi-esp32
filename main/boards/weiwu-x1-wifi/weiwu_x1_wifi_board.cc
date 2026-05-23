@@ -62,9 +62,6 @@ protected:
             delete touch_button_;
         }
     }
-    }
 };
 
-extern "C" WeiwuX1WifiBoard* CreateBoard() {
-    return new WeiwuX1WifiBoard();
-}
+DECLARE_BOARD(WeiwuX1WifiBoard);
