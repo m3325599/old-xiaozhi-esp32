@@ -93,6 +93,8 @@ jobs:
         working-directory: old-xiaozhi-esp32
         run: |
           echo "Copying firmware to release directory..."
+          # Source IDF environment
+          . /opt/esp/idf/export.sh
           
           # Create release directory structure
           mkdir -p release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER
