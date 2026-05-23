@@ -37,6 +37,9 @@ jobs:
       - name: Install project dependencies
         working-directory: old-xiaozhi-esp32
         run: |
+          # Install pip first
+          apt-get update && apt-get install -y python3-pip
+          # Then install project requirements
           python3 -m pip install --upgrade pip
           pip3 install -r scripts/p3_tools/requirements.txt
       
