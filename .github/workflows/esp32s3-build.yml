@@ -13,7 +13,6 @@ env:
   IDF_PATH: ${{ github.workspace }}/esp-idf
   TARGET: "esp32s3"
   BOARD_NAME: "weiwu-x1-wifi"
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   esp32s3-build:
@@ -26,7 +25,7 @@ jobs:
       
       - name: Cache ESP-IDF
         id: cache-idf
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.IDF_PATH }}
           key: ${{ runner.os }}-idf-${{ env.IDF_VERSION }}-${{ env.TARGET }}
@@ -51,7 +50,7 @@ jobs:
           pip3 install -r scripts/p3_tools/requirements.txt
 
       - name: Cache build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/build
           key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
@@ -93,6 +92,25 @@ jobs:
           - Windows: COM3, COM4, etc.
           - macOS: /dev/cu.usbserial-*, /dev/cu.usbmodem*
           EOF
+
+      - name: Copy firmware to release
+        run: |
+          echo "Copying firmware to release directory..."
+          
+          # Create release directory structure
+          mkdir -p release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER
+          
+          # Copy main firmware files
+          cp build/merged-binary.bin release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/merged-binary-weiwu-x1-wifi-v$GITHUB_RUN_NUMBER.bin
+          cp build/xiaozhi.bin release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/xiaozhi-weiwu-x1-wifi-v$GITHUB_RUN_NUMBER.bin
+          cp build/bootloader/bootloader.bin release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/bootloader.bin
+          cp build/partition_table/partition-table.bin release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/partition-table.bin
+          cp build/ota_data_initial.bin release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/ota_data_initial.bin
+          cp sdkconfig release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/sdkconfig
+          cp flash_weiwu-x1-wifi.txt release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/
+          
+          echo "✅ Firmware copied to release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/"
+          ls -la release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
