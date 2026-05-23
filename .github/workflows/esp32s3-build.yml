@@ -9,62 +9,41 @@ on:
         default: 'weiwu-x1-wifi'
 
 env:
-  IDF_VERSION: "v5.3"
-  IDF_PATH: ${{ github.workspace }}/esp-idf
   TARGET: "esp32s3"
   BOARD_NAME: "weiwu-x1-wifi"
 
 jobs:
   esp32s3-build:
     runs-on: ubuntu-22.04
+    container:
+      image: espressif/idf:v5.3
+      options: --user root
     
     name: Build weiwu-x1-wifi
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Cache ESP-IDF
-        id: cache-idf
-        uses: actions/cache@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          path: ${{ env.IDF_PATH }}
-          key: ${{ runner.os }}-idf-${{ env.IDF_VERSION }}-${{ env.TARGET }}
-
-      - name: Setup ESP-IDF
-        if: steps.cache-idf.outputs.cache-hit != 'true'
-        run: |
-          echo "Installing ESP-IDF ${{ env.IDF_VERSION }}..."
-          git clone --recursive --depth=1 -b ${{ env.IDF_VERSION }} https://github.com/espressif/esp-idf.git ${{ env.IDF_PATH }}
-          cd ${{ env.IDF_PATH }}
-          ./install.sh
-
-      - name: Setup IDF environment
-        run: |
-          echo "Setting up IDF environment..."
-          cd ${{ env.IDF_PATH }}
-          . ./export.sh
-          echo "IDF_PATH=${{ env.IDF_PATH }}" >> $GITHUB_ENV
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "IDF_PYTHON_ENV_PATH=/home/runner/.espressif/python_env/idf${{ env.IDF_VERSION }}_py3.10_env" >> $GITHUB_ENV
-          echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
-
-      - name: Install Python dependencies
-        run: |
-          echo "Installing project Python dependencies..."
-          source ${{ env.IDF_PATH }}/export.sh
-          python3 -m pip install --upgrade pip
-          pip3 install -r scripts/p3_tools/requirements.txt
-
+          submodules: recursive
+          path: old-xiaozhi-esp32
+      
       - name: Cache build
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/build
-          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cc', '**/*.h') }}
-
+          path: old-xiaozhi-esp32/build
+          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('old-xiaozhi-esp32/**/CMakeLists.txt', 'old-xiaozhi-esp32/**/*.cc', 'old-xiaozhi-esp32/**/*.h') }}
+      
+      - name: Install project dependencies
+        working-directory: old-xiaozhi-esp32
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r scripts/p3_tools/requirements.txt
+      
       - name: Setup and Build
+        working-directory: old-xiaozhi-esp32
         run: |
           echo "Building weiwu-x1-wifi for ${{ env.TARGET }}..."
-          source ${{ env.IDF_PATH }}/export.sh
           
           # 设置目标芯片
           idf.py set-target ${{ env.TARGET }}
@@ -73,14 +52,15 @@ jobs:
           idf.py -DBOARD_NAME="weiwu-x1-wifi" build
           
           echo "✅ weiwu-x1-wifi build completed"
-
+      
       - name: Merge binary
+        working-directory: old-xiaozhi-esp32
         run: |
           echo "Creating merged binary for weiwu-x1-wifi..."
-          source ${{ env.IDF_PATH }}/export.sh
           idf.py merge-bin
-
+      
       - name: Create flash instructions
+        working-directory: old-xiaozhi-esp32
         run: |
           cat > flash_weiwu-x1-wifi.txt << 'EOF'
           # XiaoZhi ESP32-S3 weiwu-x1-wifi Flash Instructions
@@ -100,11 +80,11 @@ jobs:
           - Windows: COM3, COM4, etc.
           - macOS: /dev/cu.usbserial-*, /dev/cu.usbmodem*
           EOF
-
+      
       - name: Copy firmware to release
+        working-directory: old-xiaozhi-esp32
         run: |
           echo "Copying firmware to release directory..."
-          source ${{ env.IDF_PATH }}/export.sh
           
           # Create release directory structure
           mkdir -p release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER
@@ -120,22 +100,23 @@ jobs:
           
           echo "✅ Firmware copied to release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/"
           ls -la release/weiwu-x1-wifi-v$GITHUB_RUN_NUMBER/
-
+      
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: weiwu-x1-wifi-firmware
           path: |
-            build/merged-binary.bin
-            build/xiaozhi.bin
-            build/bootloader/bootloader.bin
-            build/partition_table/partition-table.bin
-            build/ota_data_initial.bin
-            sdkconfig
-            flash_weiwu-x1-wifi.txt
+            old-xiaozhi-esp32/build/merged-binary.bin
+            old-xiaozhi-esp32/build/xiaozhi.bin
+            old-xiaozhi-esp32/build/bootloader/bootloader.bin
+            old-xiaozhi-esp32/build/partition_table/partition-table.bin
+            old-xiaozhi-esp32/build/ota_data_initial.bin
+            old-xiaozhi-esp32/sdkconfig
+            old-xiaozhi-esp32/flash_weiwu-x1-wifi.txt
           retention-days: 7
-
+      
       - name: Build summary
+        working-directory: old-xiaozhi-esp32
         run: |
           echo "📦 Build Summary for weiwu-x1-wifi"
           echo "Target: ${{ env.TARGET }}"
@@ -158,7 +139,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      
+        
       - name: Download weiwu-x1-wifi firmware
         uses: actions/download-artifact@v4
         with:
