@@ -26,7 +26,9 @@ jobs:
       - name: Cache build
         uses: actions/cache@v4
         with:
-          path: old-xiaozhi-esp32/build
+          path: |
+            old-xiaozhi-esp32/build
+            old-xiaozhi-esp32/managed_components
           key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('old-xiaozhi-esp32/**/CMakeLists.txt', 'old-xiaozhi-esp32/**/*.cc', 'old-xiaozhi-esp32/**/*.h', 'old-xiaozhi-esp32/main/idf_component.yml') }}
       
       - name: Install project dependencies
@@ -38,6 +40,13 @@ jobs:
           python3 -m pip install --upgrade pip
           pip3 install -r scripts/p3_tools/requirements.txt
       
+      - name: Full clean before build
+        working-directory: old-xiaozhi-esp32
+        run: |
+          echo "🧹 Full clean to avoid component version conflicts..."
+          rm -rf managed_components build
+          echo "✅ Clean complete"
+      
       - name: Setup and Build
         working-directory: old-xiaozhi-esp32
         run: |
@@ -46,15 +55,7 @@ jobs:
           # Source IDF environment to make idf.py available
           . /opt/esp/idf/export.sh
           
-          # 清理 managed_components 避免版本冲突
-          echo "🧹 Cleaning managed_components to avoid version conflicts..."
-          rm -rf managed_components
-          if [ -d "build" ]; then
-            echo "🧹 Cleaning build directory..."
-            rm -rf build/CMakeCache.txt build/CMakeFiles build/config
-          fi
-          
-          # 设置目标芯片
+          # 设置目标芯片（会自动下载managed_components）
           idf.py set-target ${{ env.TARGET }}
           
           # 执行构建
