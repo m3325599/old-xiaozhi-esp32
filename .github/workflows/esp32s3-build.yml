@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: old-xiaozhi-esp32/build
-          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('old-xiaozhi-esp32/**/CMakeLists.txt', 'old-xiaozhi-esp32/**/*.cc', 'old-xiaozhi-esp32/**/*.h') }}
+          key: ${{ runner.os }}-build-${{ env.TARGET }}-${{ env.BOARD_NAME }}-${{ hashFiles('old-xiaozhi-esp32/**/CMakeLists.txt', 'old-xiaozhi-esp32/**/*.cc', 'old-xiaozhi-esp32/**/*.h', 'old-xiaozhi-esp32/main/idf_component.yml') }}
       
       - name: Install project dependencies
         working-directory: old-xiaozhi-esp32
@@ -45,6 +45,14 @@ jobs:
           
           # Source IDF environment to make idf.py available
           . /opt/esp/idf/export.sh
+          
+          # 清理 managed_components 避免版本冲突
+          echo "🧹 Cleaning managed_components to avoid version conflicts..."
+          rm -rf managed_components
+          if [ -d "build" ]; then
+            echo "🧹 Cleaning build directory..."
+            rm -rf build/CMakeCache.txt build/CMakeFiles build/config
+          fi
           
           # 设置目标芯片
           idf.py set-target ${{ env.TARGET }}
