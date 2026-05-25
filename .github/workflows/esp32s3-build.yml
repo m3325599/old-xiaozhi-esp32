@@ -50,6 +50,11 @@ jobs:
           # 设置目标芯片（会自动下载managed_components）
           idf.py set-target ${{ env.TARGET }}
           
+          # 关键：恢复 weiwu-x1-wifi 的默认配置（防止 set-target 覆盖）
+          echo "Restoring weiwu-x1-wifi sdkconfig defaults..."
+          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig.defaults
+          idf.py reconfigure
+          
           # 执行构建
           idf.py -DBOARD_NAME="weiwu-x1-wifi" build
           
