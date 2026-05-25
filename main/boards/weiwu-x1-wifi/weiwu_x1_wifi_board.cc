@@ -5,6 +5,9 @@
 #include "audio_codecs/no_audio_codec.h"
 #include <driver/gpio.h>
 #include "led/gpio_led.h"
+#include <esp_log.h>
+
+#define TAG "WeiwuX1WifiBoard"
 
 class WeiwuX1WifiBoard : public WifiBoard {
 protected:
@@ -58,14 +61,21 @@ protected:
     virtual AudioCodec* GetAudioCodec() override {
 #ifdef AUDIO_I2S_METHOD_SIMPLEX
         // NoAudioCodecSimplex: 使用Simplex模式，独立配置麦克风和扬声器
-        // 参数：输入采样率, 输出采样率, 
-        //       扬声器BCLK, 扬声器LRCK, 扬声器DOUT,
-        //       麦克风SCK, 麦克风WS, 麦克风DIN
+        ESP_LOGI(TAG, "Audio Config: Simplex Mode");
+        ESP_LOGI(TAG, "MIC GPIO - SCK: %d, WS: %d, DIN: %d", 
+                 AUDIO_I2S_MIC_GPIO_SCK, AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_DIN);
+        ESP_LOGI(TAG, "SPK GPIO - BCLK: %d, LRCK: %d, DOUT: %d",
+                 AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT);
+        
         static NoAudioCodecSimplex audio_codec(
             AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
             AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT,
             AUDIO_I2S_MIC_GPIO_SCK, AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_DIN);
 #else
+        ESP_LOGI(TAG, "Audio Config: Duplex Mode");
+        ESP_LOGI(TAG, "I2S GPIO - BCLK: %d, WS: %d, DOUT: %d, DIN: %d",
+                 AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN);
+        
         static NoAudioCodecDuplex audio_codec(
             AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
             AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN);
