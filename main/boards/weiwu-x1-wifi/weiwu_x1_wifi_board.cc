@@ -9,12 +9,73 @@
 
 #define TAG "WeiwuX1WifiBoard"
 
+// 定义所有可能的 GPIO 组合用于调试
+#define GPIO_TEST_1_MIC_WS   GPIO_NUM_2
+#define GPIO_TEST_1_MIC_SCK  GPIO_NUM_38
+#define GPIO_TEST_1_MIC_DIN  GPIO_NUM_39
+#define GPIO_TEST_1_SPK_BCLK GPIO_NUM_11
+#define GPIO_TEST_1_SPK_LRCK GPIO_NUM_12
+#define GPIO_TEST_1_SPK_DOUT GPIO_NUM_10
+
+#define GPIO_TEST_2_MIC_WS   GPIO_NUM_4
+#define GPIO_TEST_2_MIC_SCK  GPIO_NUM_5
+#define GPIO_TEST_2_MIC_DIN  GPIO_NUM_6
+#define GPIO_TEST_2_SPK_BCLK GPIO_NUM_4
+#define GPIO_TEST_2_SPK_LRCK GPIO_NUM_5
+#define GPIO_TEST_2_SPK_DOUT GPIO_NUM_7
+
+#define GPIO_TEST_3_MIC_WS   GPIO_NUM_5
+#define GPIO_TEST_3_MIC_SCK  GPIO_NUM_4
+#define GPIO_TEST_3_MIC_DIN  GPIO_NUM_6
+#define GPIO_TEST_3_SPK_BCLK GPIO_NUM_5
+#define GPIO_TEST_3_SPK_LRCK GPIO_NUM_4
+#define GPIO_TEST_3_SPK_DOUT GPIO_NUM_7
+
 class WeiwuX1WifiBoard : public WifiBoard {
 protected:
     Button* main_button_ = nullptr;
     Button* touch_button_ = nullptr;
 
+    void LogAllGpioConfigs() {
+        ESP_LOGI(TAG, "========================================");
+        ESP_LOGI(TAG, "WEIWU-X1-WIFI GPIO CONFIGURATION DUMP");
+        ESP_LOGI(TAG, "========================================");
+        
+        // 当前实际配置
+        ESP_LOGI(TAG, "--- CURRENT ACTIVE CONFIG ---");
+#ifdef AUDIO_I2S_METHOD_SIMPLEX
+        ESP_LOGI(TAG, "Mode: SIMPLEX (Separate MIC and SPK I2S)");
+        ESP_LOGI(TAG, "MIC  - WS: %d, SCK: %d, DIN: %d", 
+                 AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_SCK, AUDIO_I2S_MIC_GPIO_DIN);
+        ESP_LOGI(TAG, "SPK  - BCLK: %d, LRCK: %d, DOUT: %d",
+                 AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT);
+#else
+        ESP_LOGI(TAG, "Mode: DUPLEX (Shared I2S)");
+        ESP_LOGI(TAG, "I2S - BCLK: %d, WS: %d, DOUT: %d, DIN: %d",
+                 AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN);
+#endif
+        ESP_LOGI(TAG, "BTN  - BOOT: %d, TOUCH: %d", BOOT_BUTTON_GPIO, TOUCH_BUTTON_GPIO);
+        ESP_LOGI(TAG, "LED  - SIMPLE: %d, BUILTIN: %d", SIMPLE_LED_GPIO, BUILTIN_LED_GPIO);
+        
+        // 所有可能的 GPIO 组合
+        ESP_LOGI(TAG, "--- POSSIBLE GPIO COMBINATIONS ---");
+        ESP_LOGI(TAG, "[Combo 1] MIC_WS=%d, MIC_SCK=%d, MIC_DIN=%d | SPK_BCLK=%d, SPK_LRCK=%d, SPK_DOUT=%d",
+                 GPIO_TEST_1_MIC_WS, GPIO_TEST_1_MIC_SCK, GPIO_TEST_1_MIC_DIN,
+                 GPIO_TEST_1_SPK_BCLK, GPIO_TEST_1_SPK_LRCK, GPIO_TEST_1_SPK_DOUT);
+        ESP_LOGI(TAG, "[Combo 2] MIC_WS=%d, MIC_SCK=%d, MIC_DIN=%d | SPK_BCLK=%d, SPK_LRCK=%d, SPK_DOUT=%d",
+                 GPIO_TEST_2_MIC_WS, GPIO_TEST_2_MIC_SCK, GPIO_TEST_2_MIC_DIN,
+                 GPIO_TEST_2_SPK_BCLK, GPIO_TEST_2_SPK_LRCK, GPIO_TEST_2_SPK_DOUT);
+        ESP_LOGI(TAG, "[Combo 3] MIC_WS=%d, MIC_SCK=%d, MIC_DIN=%d | SPK_BCLK=%d, SPK_LRCK=%d, SPK_DOUT=%d",
+                 GPIO_TEST_3_MIC_WS, GPIO_TEST_3_MIC_SCK, GPIO_TEST_3_MIC_DIN,
+                 GPIO_TEST_3_SPK_BCLK, GPIO_TEST_3_SPK_LRCK, GPIO_TEST_3_SPK_DOUT);
+        
+        ESP_LOGI(TAG, "========================================");
+    }
+
     void InitializeIot() override {
+        // 首先输出所有 GPIO 配置
+        LogAllGpioConfigs();
+        
         // 初始化主按键 - GPIO 0与日志匹配
         main_button_ = new Button(GPIO_NUM_0, true, true);
         main_button_->OnClick([this]() {
