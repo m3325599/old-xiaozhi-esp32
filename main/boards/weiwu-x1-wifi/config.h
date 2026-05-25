@@ -6,8 +6,8 @@
 #define AUDIO_INPUT_SAMPLE_RATE 16000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
 
-// 正常固件使用 Duplex 模式 (NoAudioCodecDuplex)
-// #define AUDIO_I2S_METHOD_SIMPLEX
+// 正常固件使用 Simplex 模式 (NoAudioCodecSimplex)
+#define AUDIO_I2S_METHOD_SIMPLEX
 
 #ifdef AUDIO_I2S_METHOD_SIMPLEX
 
