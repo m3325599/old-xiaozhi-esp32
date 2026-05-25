@@ -6,8 +6,8 @@
 #define AUDIO_INPUT_SAMPLE_RATE 16000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
 
-// 如果使用 Duplex I2S 模式，请注释下面一行
-#define AUDIO_I2S_METHOD_SIMPLEX
+// 正常固件使用 Duplex 模式 (NoAudioCodecDuplex)
+// #define AUDIO_I2S_METHOD_SIMPLEX
 
 #ifdef AUDIO_I2S_METHOD_SIMPLEX
 
@@ -25,9 +25,11 @@
 
 #else
 
-#define AUDIO_I2S_GPIO_WS GPIO_NUM_4
-#define AUDIO_I2S_GPIO_BCLK GPIO_NUM_5
-#define AUDIO_I2S_GPIO_DIN GPIO_NUM_6
+// Duplex 模式 GPIO 配置 - 根据正常固件分析
+// 您提到的正确组合: BCLK=GPIO4, WS=GPIO5, DIN=GPIO6
+#define AUDIO_I2S_GPIO_BCLK GPIO_NUM_4
+#define AUDIO_I2S_GPIO_WS   GPIO_NUM_5
+#define AUDIO_I2S_GPIO_DIN  GPIO_NUM_6
 #define AUDIO_I2S_GPIO_DOUT GPIO_NUM_7
 
 #endif
