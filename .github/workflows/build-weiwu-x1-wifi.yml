@@ -112,8 +112,8 @@ EOF
              - bootloader.bin: 0x0
              - partition-table.bin: 0x8000
              - xiaozhi-weiwu-x1-wifi_xxx.bin: 0x10000
-        files: |
-          xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.zip
+        files:
+          - xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.zip
         draft: false
         prerelease: false
       env:
