@@ -63,16 +63,16 @@ jobs:
         cp build/bootloader/bootloader.bin release/bootloader.bin
         cp build/partition_table/partition-table.bin release/partition-table.bin
         # 创建烧录信息文件
-        cat > release/flash_info.txt << EOF
+        cat > release/flash_info.txt << 'EOF'
 固件: weiwu-x1-wifi
 版本: ${{ steps.version.outputs.version }}
 提交: ${{ github.sha }}
 构建时间: $(date '+%Y-%m-%d %H:%M:%S')
 
 烧录命令:
-esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
-  0x0 bootloader.bin \
-  0x8000 partition-table.bin \
+esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash ^
+  0x0 bootloader.bin ^
+  0x8000 partition-table.bin ^
   0x10000 xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.bin
 EOF
         # 创建 ZIP 包
