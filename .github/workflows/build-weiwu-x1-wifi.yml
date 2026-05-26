@@ -3,24 +3,16 @@ name: Build Weiwu X1 WiFi Firmware
 on:
   push:
     branches: [ main, master ]
-    paths:
-      - 'main/boards/weiwu-x1-wifi/**'
-      - 'main/audio_codecs/**'
-      - '.github/workflows/build-weiwu-x1-wifi.yml'
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         submodules: recursive
-        fetch-depth: 0
 
     - name: Setup ESP-IDF
       uses: espressif/esp-idf-ci-action@v1
@@ -28,93 +20,19 @@ jobs:
         esp_idf_version: v5.3.1
         target: esp32s3
 
-    - name: Configure for weiwu-x1-wifi
-      shell: bash
+    - name: Build firmware
       run: |
-        cd $GITHUB_WORKSPACE
         rm -f sdkconfig
-        # 使用 weiwu-x1-wifi 专用配置
         cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
         idf.py set-target esp32s3
-        idf.py reconfigure
-
-    - name: Build firmware
-      shell: bash
-      run: |
-        cd $GITHUB_WORKSPACE
         idf.py build
-
-    - name: Generate version info
-      id: version
-      shell: bash
-      run: |
-        SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
-        BUILD_TIME=$(date +%Y%m%d_%H%M%S)
-        echo "version=${BUILD_TIME}_${SHORT_SHA}" >> $GITHUB_OUTPUT
-        echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-
-    - name: Package firmware
-      shell: bash
-      run: |
-        cd $GITHUB_WORKSPACE
-        mkdir -p release
-        # 复制固件文件
-        cp build/xiaozhi.bin release/xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.bin
-        cp build/bootloader/bootloader.bin release/bootloader.bin
-        cp build/partition_table/partition-table.bin release/partition-table.bin
-        # 创建烧录信息文件
-        cat > release/flash_info.txt << 'EOF'
-固件: weiwu-x1-wifi
-版本: ${{ steps.version.outputs.version }}
-提交: ${{ github.sha }}
-构建时间: $(date '+%Y-%m-%d %H:%M:%S')
-
-烧录命令:
-esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash ^
-  0x0 bootloader.bin ^
-  0x8000 partition-table.bin ^
-  0x10000 xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.bin
-EOF
-        # 创建 ZIP 包
-        cd release && zip -r ../xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.zip .
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}
+        name: weiwu-x1-wifi-firmware
         path: |
-          release/*.bin
-          release/*.txt
+          build/xiaozhi.bin
+          build/bootloader/bootloader.bin
+          build/partition_table/partition-table.bin
         retention-days: 30
-
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
-        name: Weiwu X1 WiFi Build ${{ github.run_number }}
-        body: |
-          ## 微五 X1 WiFi 版固件
-          
-          - **构建版本**: ${{ github.run_number }}
-          - **Git 提交**: ${{ github.sha }}
-          - **提交信息**: ${{ github.event.head_commit.message }}
-          
-          ### 板卡配置
-          - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
-          - 扬声器: I2S (GPIO15/16/17/18)
-          - 无 OLED 显示屏
-          
-          ### 烧录说明
-          1. 下载 ZIP 文件并解压
-          2. 使用 ESP Tool 或 Flash Download Tools 烧录
-          3. 烧录地址:
-             - bootloader.bin: 0x0
-             - partition-table.bin: 0x8000
-             - xiaozhi-weiwu-x1-wifi_xxx.bin: 0x10000
-        files:
-          - xiaozhi-weiwu-x1-wifi_${{ steps.version.outputs.version }}.zip
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
