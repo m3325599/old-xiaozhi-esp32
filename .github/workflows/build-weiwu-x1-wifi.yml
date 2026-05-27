@@ -36,7 +36,7 @@ jobs:
           # Copy pre-built srmodels.bin from release directory to build output
           # srmodels.bin 包含唤醒词模型数据，烧录到 model 分区 (0x10000)
           mkdir -p build/srmodels
-          cp release/v1.4.7/srmodels.bin build/srmodels/srmodels.bin
+          cp release/v1.5.2/srmodels.bin build/srmodels/srmodels.bin
           # Create merged binary with correct partition layout
           # partitions.csv: model@0x10000, ota_0@0x100000
           python3 -m esptool --chip esp32s3 merge_bin --output build/merged-binary.bin --flash_mode dio --flash_size 8MB 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/srmodels/srmodels.bin 0x100000 build/xiaozhi.bin
