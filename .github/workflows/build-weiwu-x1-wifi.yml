@@ -34,3 +34,37 @@ jobs:
           build/bootloader/bootloader.bin
           build/partition_table/partition-table.bin
         retention-days: 30
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
+        name: Weiwu X1 WiFi Build ${{ github.run_number }}
+        body: |
+          ## 微五 X1 WiFi 版固件
+          
+          - **构建版本**: ${{ github.run_number }}
+          - **Git 提交**: ${{ github.sha }}
+          
+          ### 板卡配置
+          - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
+          - 扬声器: I2S (GPIO15/16/17/18)
+          - BOOT 按键: GPIO0 (绿板)
+          - 无 OLED 显示屏
+          
+          ### 烧录说明
+          1. 下载固件文件
+          2. 使用 ESP Tool 或 Flash Download Tools 烧录
+          3. 烧录地址:
+             - bootloader.bin: 0x0
+             - partition-table.bin: 0x8000
+             - xiaozhi.bin: 0x10000
+        files: |
+          build/bootloader/bootloader.bin
+          build/partition_table/partition-table.bin
+          build/xiaozhi.bin
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
