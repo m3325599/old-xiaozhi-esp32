@@ -34,7 +34,8 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
           # Create merged binary inside the container where we have proper permissions
-          python3 -m esptool --chip esp32s3 merge_bin --output build/merged-binary.bin --flash_mode dio --flash_size 8MB 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/xiaozhi.bin
+          # Note: xiaozhi.bin should be at 0x60000 (ota_0 partition), not 0x10000
+          python3 -m esptool --chip esp32s3 merge_bin --output build/merged-binary.bin --flash_mode qio --flash_size 8MB 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x10000 build/srmodels/srmodels.bin 0x60000 build/xiaozhi.bin
           # Generate flash info inside the container to avoid permission issues
           cd build && python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
 
@@ -90,7 +91,8 @@ jobs:
             0x0 bootloader.bin \
             0x8000 partition-table.bin \
             0xd000 ota_data_initial.bin \
-            0x10000 xiaozhi.bin
+            0x10000 srmodels/srmodels.bin \
+            0x60000 xiaozhi.bin
           ```
         files: |
           build/merged-binary.bin

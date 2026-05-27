@@ -28,11 +28,12 @@ content = f"""========================================
 esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
 
 或刷入单个文件:
-esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \\
-  0x0 bootloader/bootloader.bin \\
-  0x8000 partition-table.bin \\
-  0xd000 ota_data_initial.bin \\
-  0x10000 xiaozhi.bin
+esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
+  0x0 bootloader/bootloader.bin \
+  0x8000 partition-table.bin \
+  0xd000 ota_data_initial.bin \
+  0x10000 srmodels/srmodels.bin \
+  0x60000 xiaozhi.bin
 
 ========================================
 硬件配置:
