@@ -35,23 +35,8 @@ jobs:
           idf.py build
           # 直接使用 v1.5.2 绿板完整固件作为基础
           cp release/v1.5.2/merged-binary-v1.5.2绿.bin build/merged-binary.bin
-          # 使用 esptool 替换 merged-binary.bin 中的应用程序部分（ota_0 分区 @ 0x100000）
-          python3 -c "
-import os
-# 读取 xiaozhi.bin
-with open('build/xiaozhi.bin', 'rb') as f:
-    xiaozhi_data = f.read()
-# 读取原版 merged-binary.bin
-with open('build/merged-binary.bin', 'rb') as f:
-    merged_data = bytearray(f.read())
-# 替换 ota_0 分区（0x100000 开始）
-ota_offset = 0x100000
-merged_data[ota_offset:ota_offset+len(xiaozhi_data)] = xiaozhi_data
-# 写回
-with open('build/merged-binary.bin', 'wb') as f:
-    f.write(merged_data)
-print('Replaced xiaozhi.bin at offset 0x{:X}'.format(ota_offset))
-"
+          # 使用 Python 替换 merged-binary.bin 中的应用程序部分（ota_0 分区 @ 0x100000）
+          python3 -c "import os; x=open('build/xiaozhi.bin','rb').read(); m=bytearray(open('build/merged-binary.bin','rb').read()); m[0x100000:0x100000+len(x)]=x; open('build/merged-binary.bin','wb').write(m); print('Replaced xiaozhi.bin')"
           # Generate flash info inside the container to avoid permission issues
           cd build && python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
 
