@@ -1,8 +1,6 @@
 name: Build Weiwu X1 WiFi Firmware
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +26,10 @@ jobs:
           cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
           idf.py set-target esp32s3
           idf.py build
+
+    - name: Install esptool
+      run: |
+        pip3 install esptool
 
     - name: Create merged binary and flash info
       run: |
