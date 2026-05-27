@@ -38,7 +38,7 @@ static void prepear_and_sleep()
     application.ResetProtocol();
     board.GetAudioCodec()->EnableOutput(true);
 
-    application.Alert(Lang::Strings::SHUTDOWN, Lang::Strings::SHUTDOWN, "", Lang::Strings::SHUTDOWN);
+    application.Alert(Lang::Strings::WARNING, Lang::Strings::WARNING, "", Lang::Sounds::OGG_EXCLAMATION);
 
     xTaskCreate([](void* ctx) {
         ESP_LOGI(TAG, "Sleeping in 3 seconds");
