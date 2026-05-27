@@ -33,8 +33,11 @@ jobs:
           cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
           idf.py set-target esp32s3
           idf.py build
-          # Copy pre-built srmodels.bin from release directory to build output
-          # srmodels.bin 包含唤醒词模型数据，烧录到 model 分区 (0x10000)
+          # 使用 v1.5.2 原版 bootloader、分区表和 ota_data（避免重新构建引入差异）
+          cp release/v1.5.2/bootloader.bin build/bootloader/bootloader.bin
+          cp release/v1.5.2/partition-table.bin build/partition_table/partition-table.bin
+          cp release/v1.5.2/ota_data_initial.bin build/ota_data_initial.bin
+          # 使用 v1.5.2 原版 srmodels.bin（版本匹配）
           mkdir -p build/srmodels
           cp release/v1.5.2/srmodels.bin build/srmodels/srmodels.bin
           # Create merged binary with correct partition layout
