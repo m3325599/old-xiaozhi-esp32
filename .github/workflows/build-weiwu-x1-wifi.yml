@@ -45,9 +45,11 @@ jobs:
           0x8000 partition_table/partition-table.bin \
           0xd000 ota_data_initial.bin \
           0x10000 xiaozhi.bin
-        
-        # 创建烧录说明文件
-        cat > flash_info.txt << 'EOF'
+
+    - name: Create flash info file
+      run: |
+        cd build
+        cat > flash_info.txt << 'INFOEOF'
 ========================================
 微五 X1 WiFi 版固件 - 绿板配置
 ========================================
@@ -86,7 +88,7 @@ esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
 - Flash: 8MB
 - 无 OLED 显示屏
 ========================================
-EOF
+INFOEOF
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
