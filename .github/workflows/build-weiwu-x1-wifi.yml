@@ -53,7 +53,7 @@ jobs:
         retention-days: 30
 
     - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
