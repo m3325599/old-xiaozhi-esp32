@@ -29,6 +29,7 @@ jobs:
       shell: bash
       run: |
         source $IDF_PATH/export.sh
+        rm -rf build sdkconfig
         python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
     - name: Upload artifact
