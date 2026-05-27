@@ -26,44 +26,7 @@ jobs:
           idf.py build
           cd build
           esptool.py --chip esp32s3 merge_bin -o merged-binary.bin --flash_mode dio --flash_size 8MB 0x0 bootloader/bootloader.bin 0x8000 partition_table/partition-table.bin 0xd000 ota_data_initial.bin 0x10000 xiaozhi.bin
-          echo "========================================" > flash_info.txt
-          echo "微五 X1 WiFi 版固件 - 绿板配置" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
-          echo "" >> flash_info.txt
-          echo "版本: BUILD_VERSION_PLACEHOLDER" >> flash_info.txt
-          echo "提交: BUILD_SHA_PLACEHOLDER" >> flash_info.txt
-          echo "构建时间: $(date '+%Y-%m-%d %H:%M:%S')" >> flash_info.txt
-          echo "" >> flash_info.txt
-          echo "文件说明:" >> flash_info.txt
-          echo "- merged-binary.bin: 一键刷入固件（推荐）" >> flash_info.txt
-          echo "- xiaozhi.bin: 应用程序固件" >> flash_info.txt
-          echo "- bootloader.bin: 引导程序" >> flash_info.txt
-          echo "- partition-table.bin: 分区表" >> flash_info.txt
-          echo "- ota_data_initial.bin: OTA初始数据" >> flash_info.txt
-          echo "" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
-          echo "一键刷入命令（推荐）:" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
-          echo "esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin" >> flash_info.txt
-          echo "" >> flash_info.txt
-          echo "或刷入单个文件:" >> flash_info.txt
-          echo "esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \\" >> flash_info.txt
-          echo "  0x0 bootloader/bootloader.bin \\" >> flash_info.txt
-          echo "  0x8000 partition-table.bin \\" >> flash_info.txt
-          echo "  0xd000 ota_data_initial.bin \\" >> flash_info.txt
-          echo "  0x10000 xiaozhi.bin" >> flash_info.txt
-          echo "" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
-          echo "硬件配置:" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
-          echo "- 麦克风: I2S Simplex (GPIO42/40/2)" >> flash_info.txt
-          echo "- 扬声器: I2S (GPIO15/16/17/18)" >> flash_info.txt
-          echo "- BOOT按键: GPIO0 (绿板)" >> flash_info.txt
-          echo "- 触摸按键: GPIO5" >> flash_info.txt
-          echo "- LED: GPIO8/48" >> flash_info.txt
-          echo "- Flash: 8MB" >> flash_info.txt
-          echo "- 无 OLED 显示屏" >> flash_info.txt
-          echo "========================================" >> flash_info.txt
+          printf '%s\n' '========================================' '微五 X1 WiFi 版固件 - 绿板配置' '========================================' '' "版本: $(date +%Y%m%d_%H%M%S)_$(echo $GITHUB_SHA | cut -c1-7)" "提交: $GITHUB_SHA" "构建时间: $(date '+%Y-%m-%d %H:%M:%S')" '' '文件说明:' '- merged-binary.bin: 一键刷入固件（推荐）' '- xiaozhi.bin: 应用程序固件' '- bootloader.bin: 引导程序' '- partition-table.bin: 分区表' '- ota_data_initial.bin: OTA初始数据' '' '========================================' '一键刷入命令（推荐）:' '========================================' 'esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin' '' '或刷入单个文件:' 'esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \' '  0x0 bootloader/bootloader.bin \' '  0x8000 partition-table.bin \' '  0xd000 ota_data_initial.bin \' '  0x10000 xiaozhi.bin' '' '========================================' '硬件配置:' '========================================' '- 麦克风: I2S Simplex (GPIO42/40/2)' '- 扬声器: I2S (GPIO15/16/17/18)' '- BOOT按键: GPIO0 (绿板)' '- 触摸按键: GPIO5' '- LED: GPIO8/48' '- Flash: 8MB' '- 无 OLED 显示屏' '========================================' > flash_info.txt
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
