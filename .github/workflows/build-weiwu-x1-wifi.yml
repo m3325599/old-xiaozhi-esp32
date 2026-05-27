@@ -14,18 +14,16 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Setup ESP-IDF
+    - name: Build firmware
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: v5.3.1
         target: esp32s3
-
-    - name: Build firmware
-      run: |
-        rm -f sdkconfig
-        cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
-        idf.py set-target esp32s3
-        idf.py build
+        command: |
+          rm -f sdkconfig
+          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
+          idf.py set-target esp32s3
+          idf.py build
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
