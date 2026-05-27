@@ -36,7 +36,9 @@ jobs:
           # 直接使用 v1.5.2 绿板完整固件作为基础
           cp release/v1.5.2/merged-binary-v1.5.2绿.bin build/merged-binary.bin
           # 使用 Python 替换 merged-binary.bin 中的应用程序部分（ota_0 分区 @ 0x100000）
-          python3 -c "import os; x=open('build/xiaozhi.bin','rb').read(); m=bytearray(open('build/merged-binary.bin','rb').read()); m[0x100000:0x100000+len(x)]=x; open('build/merged-binary.bin','wb').write(m); print('Replaced xiaozhi.bin')"
+          echo "x = open('build/xiaozhi.bin', 'rb').read(); m = bytearray(open('build/merged-binary.bin', 'rb').read()); m[0x100000:0x100000+len(x)] = x; open('build/merged-binary.bin', 'wb').write(m)" > replace_firmware.py
+          python3 replace_firmware.py
+          rm replace_firmware.py
           # Generate flash info inside the container to avoid permission issues
           cd build && python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
 
