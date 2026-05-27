@@ -1,6 +1,13 @@
 name: Build Weiwu X1 WiFi Firmware
 
 on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'main/**'
+      - 'sdkconfig.defaults*'
+      - 'partitions*.csv'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
