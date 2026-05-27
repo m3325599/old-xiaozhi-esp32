@@ -36,8 +36,8 @@ jobs:
         echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
     - name: Create flash info file
+      working-directory: build
       run: |
-        cd build
         echo "========================================" > flash_info.txt
         echo "微五 X1 WiFi 版固件 - 绿板配置" >> flash_info.txt
         echo "========================================" >> flash_info.txt
