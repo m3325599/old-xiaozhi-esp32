@@ -18,7 +18,7 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Build firmware and create merged binary
+    - name: Build firmware
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: v5.3.1
@@ -28,9 +28,12 @@ jobs:
           cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
           idf.py set-target esp32s3
           idf.py build
-          cd build
-          esptool.py --chip esp32s3 merge_bin -o merged-binary.bin --flash_mode dio --flash_size 8MB 0x0 bootloader/bootloader.bin 0x8000 partition_table/partition-table.bin 0xd000 ota_data_initial.bin 0x10000 xiaozhi.bin
-          python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
+
+    - name: Create merged binary and flash info
+      run: |
+        cd build
+        python3 -m esptool --chip esp32s3 merge_bin -o merged-binary.bin --flash_mode dio --flash_size 8MB 0x0 bootloader/bootloader.bin 0x8000 partition_table/partition-table.bin 0xd000 ota_data_initial.bin 0x10000 xiaozhi.bin
+        python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
