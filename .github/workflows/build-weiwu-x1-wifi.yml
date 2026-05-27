@@ -25,14 +25,80 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
 
+    - name: Generate version info
+      id: version
+      run: |
+        SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+        BUILD_TIME=$(date +%Y%m%d_%H%M%S)
+        echo "version=${BUILD_TIME}_${SHORT_SHA}" >> $GITHUB_OUTPUT
+        echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+    - name: Create merged binary
+      run: |
+        cd build
+        # 生成合并的固件（包含所有分区）
+        esptool.py --chip esp32s3 merge_bin \
+          -o merged-binary.bin \
+          --flash_mode dio \
+          --flash_size 8MB \
+          0x0 bootloader/bootloader.bin \
+          0x8000 partition_table/partition-table.bin \
+          0xd000 ota_data_initial.bin \
+          0x10000 xiaozhi.bin
+        
+        # 创建烧录说明文件
+        cat > flash_info.txt << 'EOF'
+========================================
+微五 X1 WiFi 版固件 - 绿板配置
+========================================
+
+版本: ${{ steps.version.outputs.version }}
+提交: ${{ github.sha }}
+构建时间: $(date '+%Y-%m-%d %H:%M:%S')
+
+文件说明:
+- merged-binary.bin: 一键刷入固件（推荐）
+- xiaozhi.bin: 应用程序固件
+- bootloader.bin: 引导程序
+- partition-table.bin: 分区表
+- ota_data_initial.bin: OTA初始数据
+
+========================================
+一键刷入命令（推荐）:
+========================================
+esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
+
+或刷入单个文件:
+esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
+  0x0 bootloader/bootloader.bin \
+  0x8000 partition-table.bin \
+  0xd000 ota_data_initial.bin \
+  0x10000 xiaozhi.bin
+
+========================================
+硬件配置:
+========================================
+- 麦克风: I2S Simplex (GPIO42/40/2)
+- 扬声器: I2S (GPIO15/16/17/18)
+- BOOT按键: GPIO0 (绿板)
+- 触摸按键: GPIO5
+- LED: GPIO8/48
+- Flash: 8MB
+- 无 OLED 显示屏
+========================================
+EOF
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: weiwu-x1-wifi-firmware
+        name: weiwu-x1-wifi-firmware-${{ steps.version.outputs.version }}
         path: |
+          build/merged-binary.bin
           build/xiaozhi.bin
           build/bootloader/bootloader.bin
           build/partition_table/partition-table.bin
+          build/ota_data_initial.bin
+          build/flash_info.txt
         retention-days: 30
 
     - name: Create Release
@@ -42,28 +108,48 @@ jobs:
         tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
         name: Weiwu X1 WiFi Build ${{ github.run_number }}
         body: |
-          ## 微五 X1 WiFi 版固件
+          ## 微五 X1 WiFi 版固件 - 绿板配置
           
           - **构建版本**: ${{ github.run_number }}
           - **Git 提交**: ${{ github.sha }}
+          - **版本**: ${{ steps.version.outputs.version }}
           
-          ### 板卡配置
+          ### 硬件配置
           - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
           - 扬声器: I2S (GPIO15/16/17/18)
           - BOOT 按键: GPIO0 (绿板)
+          - 触摸按键: GPIO5
+          - LED: GPIO8/48
+          - Flash: 8MB
           - 无 OLED 显示屏
           
-          ### 烧录说明
-          1. 下载固件文件
-          2. 使用 ESP Tool 或 Flash Download Tools 烧录
-          3. 烧录地址:
-             - bootloader.bin: 0x0
-             - partition-table.bin: 0x8000
-             - xiaozhi.bin: 0x10000
+          ### 文件说明
+          - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
+          - xiaozhi.bin: 应用程序固件
+          - bootloader.bin: 引导程序
+          - partition-table.bin: 分区表
+          - ota_data_initial.bin: OTA初始数据
+          
+          ### 一键刷入命令（推荐）
+          ```bash
+          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
+          ```
+          
+          ### 分区刷入命令
+          ```bash
+          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
+            0x0 bootloader.bin \
+            0x8000 partition-table.bin \
+            0xd000 ota_data_initial.bin \
+            0x10000 xiaozhi.bin
+          ```
         files: |
+          build/merged-binary.bin
+          build/xiaozhi.bin
           build/bootloader/bootloader.bin
           build/partition_table/partition-table.bin
-          build/xiaozhi.bin
+          build/ota_data_initial.bin
+          build/flash_info.txt
         draft: false
         prerelease: false
       env:
