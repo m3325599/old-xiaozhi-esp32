@@ -38,10 +38,10 @@ jobs:
         source $IDF_PATH/export.sh
         esptool.py --chip esp32s3 merge_bin \
           --flash_mode dio --flash_size 8MB \
-          --target-offset 0x0 build/bootloader/bootloader.bin \
-          --target-offset 0x8000 build/partition_table/partition-table.bin \
-          --target-offset 0x20000 build/xiaozhi.bin \
-          -o build/merged-binary.bin
+          -o build/merged-binary.bin \
+          0x0 build/bootloader/bootloader.bin \
+          0x8000 build/partition_table/partition-table.bin \
+          0x20000 build/xiaozhi.bin
         echo "Merged binary size: $(stat -c%s build/merged-binary.bin) bytes"
 
     - name: Upload artifact
