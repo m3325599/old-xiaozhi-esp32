@@ -32,14 +32,22 @@ jobs:
         rm -rf build sdkconfig
         python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
-    - name: Re-create merged binary (exclude SPIFFS assets)
+    - name: Extract v1.5.2 bootloader (known working)
+      shell: bash
+      run: |
+        git fetch origin backup-v1.5.2
+        git checkout origin/backup-v1.5.2 -- "release/v1.5.2/merged-binary-v1.5.2绿.bin"
+        dd if="release/v1.5.2/merged-binary-v1.5.2绿.bin" of=build/bootloader/bootloader_v152.bin bs=1024 count=32
+        echo "v1.5.2 bootloader size: $(stat -c%s build/bootloader/bootloader_v152.bin) bytes"
+
+    - name: Re-create merged binary (v1.5.2 bootloader + v2.2.6 app)
       shell: bash
       run: |
         source $IDF_PATH/export.sh
         esptool.py --chip esp32s3 merge_bin \
-          --flash_mode qio --flash_size 8MB --flash_freq 80m \
+          --flash_mode dio --flash_size 8MB \
           -o build/merged-binary.bin \
-          0x0 build/bootloader/bootloader.bin \
+          0x0 build/bootloader/bootloader_v152.bin \
           0x8000 build/partition_table/partition-table.bin \
           0xd000 build/ota_data_initial.bin \
           0x20000 build/xiaozhi.bin
