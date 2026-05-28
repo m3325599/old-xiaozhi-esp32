@@ -26,7 +26,7 @@ jobs:
     - name: Build firmware
       uses: espressif/esp-idf-ci-action@v1
       with:
-        esp_idf_version: v5.3.1
+        esp_idf_version: v5.5.2
         target: esp32s3
         command: |
           rm -f sdkconfig
@@ -34,7 +34,7 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
           # Create merged binary inside the container
-          python3 -m esptool --chip esp32s3 merge-bin --flash-mode dio --flash-size 8MB -o build/merged-binary.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x20000 build/xiaozhi.bin
+          python3 -m esptool --chip esp32s3 merge_bin --flash_mode dio --flash_size 8MB -o build/merged-binary.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x20000 build/xiaozhi.bin
 
     - name: Generate flash info
       run: |
