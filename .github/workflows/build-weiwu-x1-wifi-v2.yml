@@ -12,11 +12,14 @@ on:
 
 permissions:
   contents: write
-  packages: write
+  packages: read
 
 jobs:
   build:
+    name: Build Weiwu X1 WiFi
     runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.5.2
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -24,17 +27,15 @@ jobs:
         submodules: recursive
 
     - name: Build firmware
-      uses: espressif/esp-idf-ci-action@v1
-      with:
-        esp_idf_version: v5.5.2
-        target: esp32s3
-        command: |
-          rm -f sdkconfig
-          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
-          idf.py set-target esp32s3
-          idf.py build
-          # Create merged binary inside the container
-          python3 -m esptool --chip esp32s3 merge_bin --flash_mode dio --flash_size 8MB -o build/merged-binary.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x20000 build/xiaozhi.bin
+      shell: bash
+      run: |
+        source $IDF_PATH/export.sh
+        rm -f sdkconfig
+        cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
+        idf.py set-target esp32s3
+        idf.py build
+        # Create merged binary
+        python -m esptool --chip esp32s3 merge_bin --flash_mode dio --flash_size 8MB -o build/merged-binary.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x20000 build/xiaozhi.bin
 
     - name: Generate flash info
       run: |
@@ -42,6 +43,7 @@ jobs:
         echo "Firmware built successfully"
         echo "SHA: ${{ github.sha }}" > flash_info.txt
         echo "Build: ${{ github.run_number }}" >> flash_info.txt
+        echo "Date: $(date)" >> flash_info.txt
         ls -la *.bin
 
     - name: Upload artifact
@@ -57,18 +59,31 @@ jobs:
           build/flash_info.txt
         retention-days: 30
 
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: weiwu-x1-wifi-firmware-v2
+        path: firmware
+
     - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: weiwu-x1-wifi-v2-build-${{ github.run_number }}
+        tag_name: v2.2.6-weiwu-x1-wifi-${{ github.run_number }}
         name: Weiwu X1 WiFi v2.2.6 Build ${{ github.run_number }}
         body: |
           ## 微五 X1 WiFi 版固件 v2.2.6 - 绿板配置
           
           - **构建版本**: ${{ github.run_number }}
           - **Git 提交**: ${{ github.sha }}
+          - **构建日期**: ${{ github.event.head_commit.timestamp }}
           - **基于**: xiaozhi-esp32 v2.2.6
+          - **ESP-IDF**: v5.5.2
           
           ### 硬件配置
           - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
@@ -84,6 +99,7 @@ jobs:
           - 动态资源下载
           - 改进的音频服务架构
           - 状态机管理
+          - 支持自定义唤醒词
           
           ### 文件说明
           - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
@@ -99,19 +115,15 @@ jobs:
           
           ### 分区刷入命令
           ```bash
-          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
-            0x0 bootloader.bin \
-            0x8000 partition-table.bin \
-            0xd000 ota_data_initial.bin \
+          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \\
+            0x0 bootloader.bin \\
+            0x8000 partition-table.bin \\
+            0xd000 ota_data_initial.bin \\
             0x20000 xiaozhi.bin
           ```
-        files: |
-          build/merged-binary.bin
-          build/xiaozhi.bin
-          build/bootloader/bootloader.bin
-          build/partition_table/partition-table.bin
-          build/ota_data_initial.bin
-          build/flash_info.txt
+          
+          ⚠️ **注意**: v2.x 与 v1.x 分区表不兼容，需要重新烧录固件，无法通过OTA升级。
+        files: firmware/*
         draft: false
         prerelease: true
       env:
