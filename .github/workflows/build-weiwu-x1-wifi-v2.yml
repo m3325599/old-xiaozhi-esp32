@@ -1,0 +1,118 @@
+name: Build Weiwu X1 WiFi Firmware (v2.2.6)
+
+on:
+  push:
+    branches: [ main, master, port-weiwu-x1-wifi ]
+    paths:
+      - 'main/**'
+      - 'sdkconfig.defaults*'
+      - 'partitions/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Build firmware
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.3.1
+        target: esp32s3
+        command: |
+          rm -f sdkconfig
+          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
+          idf.py set-target esp32s3
+          idf.py build
+          # Create merged binary inside the container
+          python3 -m esptool --chip esp32s3 merge-bin --flash-mode dio --flash-size 8MB -o build/merged-binary.bin 0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0xd000 build/ota_data_initial.bin 0x20000 build/xiaozhi.bin
+
+    - name: Generate flash info
+      run: |
+        cd build
+        echo "Firmware built successfully"
+        echo "SHA: ${{ github.sha }}" > flash_info.txt
+        echo "Build: ${{ github.run_number }}" >> flash_info.txt
+        ls -la *.bin
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: weiwu-x1-wifi-firmware-v2
+        path: |
+          build/merged-binary.bin
+          build/xiaozhi.bin
+          build/bootloader/bootloader.bin
+          build/partition_table/partition-table.bin
+          build/ota_data_initial.bin
+          build/flash_info.txt
+        retention-days: 30
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: weiwu-x1-wifi-v2-build-${{ github.run_number }}
+        name: Weiwu X1 WiFi v2.2.6 Build ${{ github.run_number }}
+        body: |
+          ## 微五 X1 WiFi 版固件 v2.2.6 - 绿板配置
+          
+          - **构建版本**: ${{ github.run_number }}
+          - **Git 提交**: ${{ github.sha }}
+          - **基于**: xiaozhi-esp32 v2.2.6
+          
+          ### 硬件配置
+          - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
+          - 扬声器: I2S (GPIO15/16/17/18)
+          - BOOT 按键: GPIO0 (绿板)
+          - 触摸按键: GPIO5
+          - LED: GPIO8/48
+          - Flash: 8MB
+          - 无 OLED 显示屏
+          
+          ### v2 新特性
+          - 支持 MCP 协议
+          - 动态资源下载
+          - 改进的音频服务架构
+          - 状态机管理
+          
+          ### 文件说明
+          - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
+          - xiaozhi.bin: 应用程序固件
+          - bootloader.bin: 引导程序
+          - partition-table.bin: 分区表
+          - ota_data_initial.bin: OTA初始数据
+          
+          ### 一键刷入命令（推荐）
+          ```bash
+          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
+          ```
+          
+          ### 分区刷入命令
+          ```bash
+          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
+            0x0 bootloader.bin \
+            0x8000 partition-table.bin \
+            0xd000 ota_data_initial.bin \
+            0x20000 xiaozhi.bin
+          ```
+        files: |
+          build/merged-binary.bin
+          build/xiaozhi.bin
+          build/bootloader/bootloader.bin
+          build/partition_table/partition-table.bin
+          build/ota_data_initial.bin
+          build/flash_info.txt
+        draft: false
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
