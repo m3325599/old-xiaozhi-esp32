@@ -35,6 +35,7 @@ jobs:
     - name: Extract v1.5.2 bootloader (known working)
       shell: bash
       run: |
+        git config --global --add safe.directory /__w/old-xiaozhi-esp32/old-xiaozhi-esp32
         git fetch origin backup-v1.5.2
         git checkout origin/backup-v1.5.2 -- "release/v1.5.2/merged-binary-v1.5.2绿.bin"
         dd if="release/v1.5.2/merged-binary-v1.5.2绿.bin" of=build/bootloader/bootloader_v152.bin bs=1024 count=32
