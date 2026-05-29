@@ -40,13 +40,34 @@ def get_project_version() -> Optional[str]:
 
 
 def merge_bin() -> None:
-    # 使用 esptool.py 手动合并必要的分区，不包含空的 ota_1 和 assets 分区
-    cmd = "esptool.py --chip esp32s3 merge_bin -o build/merged-binary.bin " \
+    import shutil
+    esptool_path = shutil.which("esptool.py")
+    if not esptool_path:
+        esptool_path = shutil.which("esptool")
+    if not esptool_path:
+        print("esptool.py not found in PATH", file=sys.stderr)
+        sys.exit(1)
+    
+    required_files = [
+        "build/bootloader/bootloader.bin",
+        "build/partition_table/partition-table.bin",
+        "build/ota_data_initial.bin",
+        "build/xiaozhi.bin"
+    ]
+    
+    for f in required_files:
+        if not Path(f).exists():
+            print(f"Required file not found: {f}", file=sys.stderr)
+            sys.exit(1)
+    
+    cmd = f"{esptool_path} --chip esp32s3 merge_bin -o build/merged-binary.bin " \
           "--flash_mode dio --flash_size 8MB --flash_freq 80m " \
           "0x0 build/bootloader/bootloader.bin " \
           "0x8000 build/partition_table/partition-table.bin " \
           "0x9000 build/ota_data_initial.bin " \
           "0x20000 build/xiaozhi.bin"
+    
+    print(f"Running: {cmd}")
     if os.system(cmd) != 0:
         print("merge-bin failed", file=sys.stderr)
         sys.exit(1)
