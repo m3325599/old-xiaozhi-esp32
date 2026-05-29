@@ -9,16 +9,6 @@ on:
       - 'xiaozhi-v2/partitions/**'
       - '.github/workflows/**'
   workflow_dispatch:
-    inputs:
-      flash_assets:
-        description: 'Flash Assets Type'
-        required: true
-        default: 'FLASH_DEFAULT_ASSETS'
-        type: choice
-        options:
-          - FLASH_DEFAULT_ASSETS
-          - FLASH_NONE_ASSETS
-          - FLASH_EXPRESSION_ASSETS
 
 permissions:
   contents: write
@@ -26,7 +16,7 @@ permissions:
 
 jobs:
   build-weiwu-x1-wifi:
-    name: Build Weiwu X1 WiFi (${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }})
+    name: Build Weiwu X1 WiFi
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v5.5.2
@@ -39,70 +29,14 @@ jobs:
       - name: Build Weiwu X1 WiFi
         shell: bash
         working-directory: xiaozhi-v2
-        env:
-          FLASH_ASSETS: ${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
         run: |
           source $IDF_PATH/export.sh
-          
-          # 创建自定义配置文件
-          cat > sdkconfig.defaults.weuwxi << 'EOF'
-          # Weiwu X1 WiFi 8MB Flash 配置
-          CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
-          CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
-          CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
-          
-          # PSRAM 配置 (64MB Octal)
-          CONFIG_SPIRAM=y
-          CONFIG_SPIRAM_MODE_OCT=y
-          CONFIG_SPIRAM_SPEED_80M=y
-          CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=2048
-          CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=98304
-          CONFIG_SPIRAM_MEMTEST=n
-          CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
-          
-          # 缓存配置
-          CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
-          CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
-          
-          # 分区表 (v2 8MB)
-          CONFIG_PARTITION_TABLE_CUSTOM=y
-          CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/v2/8m.csv"
-          CONFIG_PARTITION_TABLE_OFFSET=0x8000
-          
-          # 唤醒词模型
-          CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=y
-          
-          # 板卡类型
-          CONFIG_BOARD_TYPE_WEIWU_X1_WIFI=y
-          
-          # 禁用 OLED 显示
-          CONFIG_DISPLAY_ENABLE=n
-          
-          # Flash Assets 类型
-          CONFIG_${FLASH_ASSETS}=y
-          EOF
-          
-          # 设置目标芯片
-          idf.py set-target esp32s3
-          
-          # 合并默认配置
-          cat sdkconfig.defaults >> sdkconfig.defaults.weuwxi
-          mv sdkconfig.defaults.weuwxi sdkconfig.defaults
-          
-          # 编译
-          idf.py -DBOARD_NAME=weiwu-x1-wifi -DBOARD_TYPE=weiwu-x1-wifi build
-
-      - name: Merge Binary
-        shell: bash
-        working-directory: xiaozhi-v2
-        run: |
-          source $IDF_PATH/export.sh
-          idf.py merge-bin
+          python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: weiwu-x1-wifi-${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
+          name: weiwu-x1-wifi
           path: xiaozhi-v2/build/merged-binary.bin
           if-no-files-found: error
 
@@ -110,12 +44,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-weiwu-x1-wifi-${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
+          name: build-logs-weiwu-x1-wifi
           path: xiaozhi-v2/build/logs/
           if-no-files-found: ignore
 
       - name: Create Release
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name != 'workflow_dispatch'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
