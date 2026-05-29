@@ -4,107 +4,144 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'main/**'
-      - 'sdkconfig.defaults*'
-      - 'partitions*.csv'
+      - 'xiaozhi-v2/main/**'
+      - 'xiaozhi-v2/sdkconfig.defaults*'
+      - 'xiaozhi-v2/partitions/**'
       - '.github/workflows/**'
   workflow_dispatch:
+    inputs:
+      flash_assets:
+        description: 'Flash Assets Type'
+        required: true
+        default: 'FLASH_DEFAULT_ASSETS'
+        type: choice
+        options:
+          - FLASH_DEFAULT_ASSETS
+          - FLASH_NONE_ASSETS
+          - FLASH_EXPRESSION_ASSETS
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  build:
+  build-weiwu-x1-wifi:
+    name: Build Weiwu X1 WiFi (${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }})
     runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.5.2
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Build firmware
-      uses: espressif/esp-idf-ci-action@v1
-      with:
-        esp_idf_version: v5.3.1
-        target: esp32s3
-        command: |
-          rm -f sdkconfig
-          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig
+      - name: Build Weiwu X1 WiFi
+        shell: bash
+        working-directory: xiaozhi-v2
+        env:
+          FLASH_ASSETS: ${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
+        run: |
+          source $IDF_PATH/export.sh
+          
+          # 创建自定义配置文件
+          cat > sdkconfig.defaults.weuwxi << 'EOF'
+          # Weiwu X1 WiFi 8MB Flash 配置
+          CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+          CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+          CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+          
+          # PSRAM 配置 (64MB Octal)
+          CONFIG_SPIRAM=y
+          CONFIG_SPIRAM_MODE_OCT=y
+          CONFIG_SPIRAM_SPEED_80M=y
+          CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=2048
+          CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=98304
+          CONFIG_SPIRAM_MEMTEST=n
+          CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+          
+          # 缓存配置
+          CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+          CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+          
+          # 分区表 (v2 8MB)
+          CONFIG_PARTITION_TABLE_CUSTOM=y
+          CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/v2/8m.csv"
+          CONFIG_PARTITION_TABLE_OFFSET=0x8000
+          
+          # 唤醒词模型
+          CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=y
+          
+          # 板卡类型
+          CONFIG_BOARD_TYPE_WEIWU_X1_WIFI=y
+          
+          # 禁用 OLED 显示
+          CONFIG_DISPLAY_ENABLE=n
+          
+          # Flash Assets 类型
+          CONFIG_${FLASH_ASSETS}=y
+          EOF
+          
+          # 设置目标芯片
           idf.py set-target esp32s3
-          idf.py build
-          # 直接使用 v1.5.2 绿板完整固件作为基础
-          cp release/v1.5.2/merged-binary-v1.5.2绿.bin build/merged-binary.bin
-          # 使用 Python 替换 merged-binary.bin 中的应用程序部分（ota_0 分区 @ 0x100000）
-          echo "x = open('build/xiaozhi.bin', 'rb').read(); m = bytearray(open('build/merged-binary.bin', 'rb').read()); m[0x100000:0x100000+len(x)] = x; open('build/merged-binary.bin', 'wb').write(m)" > replace_firmware.py
-          python3 replace_firmware.py
-          rm replace_firmware.py
-          # Generate flash info inside the container to avoid permission issues
-          cd build && python3 ../scripts/generate_flash_info.py "$GITHUB_SHA"
+          
+          # 合并默认配置
+          cat sdkconfig.defaults >> sdkconfig.defaults.weuwxi
+          mv sdkconfig.defaults.weuwxi sdkconfig.defaults
+          
+          # 编译
+          idf.py -DBOARD_NAME=weiwu-x1-wifi -DBOARD_TYPE=weiwu-x1-wifi build
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: weiwu-x1-wifi-firmware
-        path: |
-          build/merged-binary.bin
-          build/xiaozhi.bin
-          build/bootloader/bootloader.bin
-          build/partition_table/partition-table.bin
-          build/ota_data_initial.bin
-          build/flash_info.txt
-        retention-days: 30
+      - name: Merge Binary
+        shell: bash
+        working-directory: xiaozhi-v2
+        run: |
+          source $IDF_PATH/export.sh
+          idf.py merge-bin
 
-    - name: Create Release
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
-        name: Weiwu X1 WiFi Build ${{ github.run_number }}
-        body: |
-          ## 微五 X1 WiFi 版固件 - 绿板配置
-          
-          - **构建版本**: ${{ github.run_number }}
-          - **Git 提交**: ${{ github.sha }}
-          
-          ### 硬件配置
-          - 麦克风: I2S Simplex 模式 (GPIO42/40/2)
-          - 扬声器: I2S (GPIO15/16/17/18)
-          - BOOT 按键: GPIO0 (绿板)
-          - 触摸按键: GPIO5
-          - LED: GPIO8/48
-          - Flash: 8MB
-          - 无 OLED 显示屏
-          
-          ### 文件说明
-          - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
-          - xiaozhi.bin: 应用程序固件
-          - bootloader.bin: 引导程序
-          - partition-table.bin: 分区表
-          - ota_data_initial.bin: OTA初始数据
-          
-          ### 一键刷入命令（推荐）
-          ```bash
-          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
-          ```
-          
-          ### 分区刷入命令
-          ```bash
-          esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash \
-            0x0 bootloader.bin \
-            0x8000 partition-table.bin \
-            0xd000 ota_data_initial.bin \
-            0x10000 srmodels/srmodels.bin \
-            0x100000 xiaozhi.bin
-          ```
-        files: |
-          build/merged-binary.bin
-          build/xiaozhi.bin
-          build/bootloader/bootloader.bin
-          build/partition_table/partition-table.bin
-          build/ota_data_initial.bin
-          build/flash_info.txt
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weiwu-x1-wifi-${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
+          path: xiaozhi-v2/build/merged-binary.bin
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-weiwu-x1-wifi-${{ inputs.flash_assets || 'FLASH_DEFAULT_ASSETS' }}
+          path: xiaozhi-v2/build/logs/
+          if-no-files-found: ignore
+
+      - name: Create Release
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name != 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
+          name: Weiwu X1 WiFi Build ${{ github.run_number }}
+          body: |
+            ## 微五 X1 WiFi 版固件 - xiaozhi-v2
+            
+            - **构建版本**: ${{ github.run_number }}
+            - **Git 提交**: ${{ github.sha }}
+            
+            ### 硬件配置
+            - 芯片: ESP32-S3
+            - Flash: 8MB
+            - PSRAM: 64MB Octal
+            - 无 OLED 显示屏
+            
+            ### 文件说明
+            - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
+            
+            ### 一键刷入命令（推荐）
+            ```bash
+            esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
+            ```
+          files: |
+            xiaozhi-v2/build/merged-binary.bin
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
