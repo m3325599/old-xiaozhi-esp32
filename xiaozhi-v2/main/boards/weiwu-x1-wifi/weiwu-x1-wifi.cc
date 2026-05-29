@@ -9,7 +9,6 @@
 #include "led/single_led.h"
 #include "assets/lang_config.h"
 
-#include <wifi_station.h>
 #include <esp_log.h>
 #include <driver/i2c_master.h>
 #include "application.h"
@@ -105,9 +104,6 @@ private:
         boot_button_.OnClick([this]()
                              {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
-                ResetWifiConfiguration();
-            }
             app.ToggleChatState(); });
 
         boot_button_.OnLongPress([this]()
