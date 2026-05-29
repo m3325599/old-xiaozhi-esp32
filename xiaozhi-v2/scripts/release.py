@@ -40,7 +40,14 @@ def get_project_version() -> Optional[str]:
 
 
 def merge_bin() -> None:
-    if os.system("idf.py merge-bin") != 0:
+    # 使用 esptool.py 手动合并必要的分区，不包含空的 ota_1 和 assets 分区
+    cmd = "esptool.py --chip esp32s3 merge_bin -o build/merged-binary.bin " \
+          "--flash_mode dio --flash_size 8MB --flash_freq 80m " \
+          "0x0 build/bootloader/bootloader.bin " \
+          "0x8000 build/partition_table/partition-table.bin " \
+          "0x9000 build/ota_data_initial.bin " \
+          "0x20000 build/xiaozhi.bin"
+    if os.system(cmd) != 0:
         print("merge-bin failed", file=sys.stderr)
         sys.exit(1)
 
