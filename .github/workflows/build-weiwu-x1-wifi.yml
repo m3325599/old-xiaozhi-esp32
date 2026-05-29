@@ -31,6 +31,8 @@ jobs:
         working-directory: xiaozhi-v2
         run: |
           source $IDF_PATH/export.sh
+          idf.py set-target esp32s3
+          idf.py fullclean
           python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
       - name: Upload artifacts
