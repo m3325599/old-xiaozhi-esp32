@@ -35,3 +35,4 @@ CONFIG_BOARD_TYPE_WEIWU_X1_WIFI=y
 # 禁用 OLED 显示（该板卡无显示屏）
 CONFIG_DISPLAY_ENABLE=n
  
+# trigger build
