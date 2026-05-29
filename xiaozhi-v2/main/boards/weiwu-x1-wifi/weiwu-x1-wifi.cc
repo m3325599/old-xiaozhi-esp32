@@ -41,36 +41,18 @@ static void init_simple_led()
 
 static void prepear_and_sleep()
 {
-    // 关机提示音
-    auto &application = Application::GetInstance();
-    auto &board = Board::GetInstance();
-    application.SetDeviceState(kDeviceStateIdle);
-    application.ResetDecoder(); // 清除当前的音频缓冲区
-    board.GetAudioCodec()->EnableOutput(true);
+    ESP_LOGW(TAG, "系统进入睡眠");
+    vTaskDelay(pdMS_TO_TICKS(100));
 
-    application.Alert(Lang::Strings::SHUTDOWN, Lang::Strings::SHUTDOWN, "", Lang::Sounds::P3_SHUTDOWN);
-
-    // 等候语音播放完成
-    // 这里添加等待语音播放完成的逻辑，可能涉及检查音频播放状态等操作
-    xTaskCreate([](void *ctx)
-                {
-        ESP_LOGI(TAG, "Sleeping in 3 seconds");
-        vTaskDelay(pdMS_TO_TICKS(3000));
-
-            ESP_LOGW(TAG, "启动电源按钮开机...");
-            esp_err_t err = esp_sleep_enable_ext0_wakeup((gpio_num_t)BOOT_BUTTON_GPIO, 0);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to enable BOOT_BUTTON_GPIO as wakeup source: %s", esp_err_to_name(err));
-                return;
-            }
-
-        ESP_LOGW(TAG, "系统进入睡眠");
-        esp_deep_sleep_start(); }, "sleep_task", 4096, NULL, 5, NULL);
-
-    while (1)
-    {
-        vTaskDelay(pdMS_TO_TICKS(3000));
+    ESP_LOGW(TAG, "启动电源按钮开机...");
+    esp_err_t err = esp_sleep_enable_ext0_wakeup((gpio_num_t)BOOT_BUTTON_GPIO, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to enable BOOT_BUTTON_GPIO as wakeup source: %s", esp_err_to_name(err));
+        return;
     }
+
+    ESP_LOGW(TAG, "系统进入深度睡眠");
+    esp_deep_sleep_start();
 }
 
 class CompactWifiBoard : public WifiBoard
