@@ -1,4 +1,4 @@
-name: Build Weiwu X1 WiFi Firmware
+name: Build Weiwu X1 WiFi Firmware (v2.2.6)
 
 on:
   push:
