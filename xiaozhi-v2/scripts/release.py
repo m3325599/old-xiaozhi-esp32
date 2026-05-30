@@ -62,10 +62,10 @@ def merge_bin() -> None:
     
     cmd = f"{esptool_path} --chip esp32s3 merge_bin -o build/merged-binary.bin " \
           "--flash_mode dio --flash_size 8MB --flash_freq 80m " \
-          "0x1000 build/bootloader/bootloader.bin " \
+          "0x0 build/bootloader/bootloader.bin " \
           "0x8000 build/partition_table/partition-table.bin " \
-          "0x9000 build/ota_data_initial.bin " \
-          "0x100000 build/xiaozhi.bin"
+          "0xd000 build/ota_data_initial.bin " \
+          "0x20000 build/xiaozhi.bin"
     
     print(f"Running: {cmd}")
     if os.system(cmd) != 0:
