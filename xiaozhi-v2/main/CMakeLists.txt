@@ -87,9 +87,8 @@ set(EMOTE_RESOLUTION "320_240")
 # Set default assets if the board uses partition table V2
 if(CONFIG_BOARD_TYPE_WEIWU_X1_WIFI)
     set(BOARD_TYPE "weiwu-x1-wifi")
-    # 禁用所有显示相关源文件（该板卡无显示屏）
+    # 禁用显示相关源文件（该板卡无显示屏），但保留基础的 display.cc
     list(REMOVE_ITEM SOURCES
-        "display/display.cc"
         "display/lcd_display.cc"
         "display/oled_display.cc"
         "display/lvgl_display/lvgl_display.cc"

@@ -3,7 +3,6 @@
 #include <string>
 #include <cstdlib>
 #include <cstring>
-#include <font_awesome.h>
 
 #include "display.h"
 #include "board.h"
