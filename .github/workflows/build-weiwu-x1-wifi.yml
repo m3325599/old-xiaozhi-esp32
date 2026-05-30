@@ -1,4 +1,5 @@
 name: Build Weiwu X1 WiFi Firmware (v2.2.6)
+# 2026-05-30: 修复 merge_bin 偏移地址为 0x20000，匹配 8m.csv 分区表
 
 on:
   push:
