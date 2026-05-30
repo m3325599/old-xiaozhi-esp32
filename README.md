@@ -122,4 +122,17 @@ IDF工具烧录可以参考命令行烧录的文件和烧录地址：
    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Boca24/xiaozhi-esp32&type=Date" />
    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Boca24/xiaozhi-esp32&type=Date" />
  </picture>
-</a>
+ </a>
+
+## 2026-05-30 修复记录
+
+### 微五 X1 WiFi 版固件 (xiaozhi-v2) 启动问题修复
+
+1. **修复 merge_bin 偏移地址不匹配问题**
+   - `xiaozhi-v2/scripts/release.py` 中的 `xiaozhi.bin` 偏移地址从 `0x100000` 更改为 `0x20000`
+   - 匹配 `xiaozhi-v2/partitions/v2/8m.csv` 分区表中 ota_0 的起始地址
+
+2. **根目录 workflow 触发修复**
+   - `.github/workflows/build-weiwu-x1-wifi.yml` 添加自动编译触发器
+   - 修复 working-directory 配置，确保在正确目录执行编译命令
+
