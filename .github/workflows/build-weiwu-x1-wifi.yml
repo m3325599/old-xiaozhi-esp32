@@ -1,5 +1,6 @@
 name: Build Weiwu X1 WiFi Firmware (v2.2.6)
 # 2026-05-30: 修复 merge_bin 偏移地址为 0x20000，匹配 8m.csv 分区表
+# + 修复 scripts/release.py merge_bin 偏移
 
 on:
   push:
@@ -8,6 +9,7 @@ on:
       - 'xiaozhi-v2/main/**'
       - 'xiaozhi-v2/sdkconfig.defaults*'
       - 'xiaozhi-v2/partitions/**'
+      - 'xiaozhi-v2/scripts/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
