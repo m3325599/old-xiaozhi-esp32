@@ -1,14 +1,14 @@
 name: Build Weiwu X1 WiFi Firmware (v2.2.6)
-# 2026-05-30: 回退到 v1.5.2 分区表格式，修复启动问题
+# 2026-05-30: 修复工作流，在根目录构建，而非xiaozhi-v2子目录
 
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'xiaozhi-v2/main/**'
-      - 'xiaozhi-v2/sdkconfig.defaults*'
-      - 'xiaozhi-v2/partitions/**'
-      - 'xiaozhi-v2/scripts/**'
+      - 'main/**'
+      - 'sdkconfig.defaults*'
+      - 'partitions/**'
+      - 'scripts/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -30,7 +30,6 @@ jobs:
 
       - name: Build Weiwu X1 WiFi
         shell: bash
-        working-directory: xiaozhi-v2
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
@@ -45,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: weiwu-x1-wifi
-          path: xiaozhi-v2/build/merged-binary.bin
+          path: build/merged-binary.bin
           if-no-files-found: error
 
       - name: Upload build logs
@@ -53,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs-weiwu-x1-wifi
-          path: xiaozhi-v2/build/logs/
+          path: build/logs/
           if-no-files-found: ignore
 
       - name: Create Release
@@ -88,7 +87,7 @@ jobs:
             esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
             ```
           files: |
-            xiaozhi-v2/build/merged-binary.bin
+            build/merged-binary.bin
           draft: false
           prerelease: false
         env:
