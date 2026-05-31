@@ -1,14 +1,15 @@
 name: Build Weiwu X1 WiFi Firmware (v2.2.6)
-# 2026-05-30: 修复工作流，在根目录构建，而非xiaozhi-v2子目录
+# 2026-05-30: 修复 merge_bin 偏移地址为 0x20000，匹配 8m.csv 分区表
+# + 修复 scripts/release.py merge_bin 偏移
 
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'main/**'
-      - 'sdkconfig.defaults*'
-      - 'partitions/**'
-      - 'scripts/**'
+      - 'xiaozhi-v2/main/**'
+      - 'xiaozhi-v2/sdkconfig.defaults*'
+      - 'xiaozhi-v2/partitions/**'
+      - 'xiaozhi-v2/scripts/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -30,21 +31,18 @@ jobs:
 
       - name: Build Weiwu X1 WiFi
         shell: bash
+        working-directory: xiaozhi-v2
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
           idf.py fullclean
-          
-          # 使用 v1.5.2 兼容的 sdkconfig
-          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig.defaults
-          
           python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: weiwu-x1-wifi
-          path: build/merged-binary.bin
+          path: xiaozhi-v2/build/merged-binary.bin
           if-no-files-found: error
 
       - name: Upload build logs
@@ -52,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs-weiwu-x1-wifi
-          path: build/logs/
+          path: xiaozhi-v2/build/logs/
           if-no-files-found: ignore
 
       - name: Create Release
@@ -73,12 +71,6 @@ jobs:
             - PSRAM: 64MB Octal
             - 无 OLED 显示屏
             
-            ### 分区配置 (v1.5.2 兼容)
-            - bootloader @ 0x0
-            - partition table @ 0x8000
-            - ota_data @ 0xd000
-            - ota_0 (app) @ 0x100000
-            
             ### 文件说明
             - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
             
@@ -87,7 +79,7 @@ jobs:
             esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
             ```
           files: |
-            build/merged-binary.bin
+            xiaozhi-v2/build/merged-binary.bin
           draft: false
           prerelease: false
         env:
