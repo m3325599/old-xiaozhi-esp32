@@ -1,4 +1,5 @@
 // Weiwu X1 WiFi board support
+// Fix build and ensure proper firmware generation
 #include "wifi_board.h"
 #include "codecs/no_audio_codec.h"
 #include "display/display.h"
