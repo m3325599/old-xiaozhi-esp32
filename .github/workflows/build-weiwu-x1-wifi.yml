@@ -1,6 +1,5 @@
 name: Build Weiwu X1 WiFi Firmware (v2.2.6)
-# 2026-05-30: 修复 merge_bin 偏移地址为 0x20000，匹配 8m.csv 分区表
-# + 修复 scripts/release.py merge_bin 偏移
+# 2026-05-30: 回退到 v1.5.2 分区表格式，修复启动问题
 
 on:
   push:
@@ -36,6 +35,10 @@ jobs:
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
           idf.py fullclean
+
+          # 使用 v1.5.2 兼容的 sdkconfig
+          cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig.defaults
+
           python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
 
       - name: Upload artifacts
@@ -61,19 +64,25 @@ jobs:
           name: Weiwu X1 WiFi Build ${{ github.run_number }}
           body: |
             ## 微五 X1 WiFi 版固件 - xiaozhi-v2
-            
+
             - **构建版本**: ${{ github.run_number }}
             - **Git 提交**: ${{ github.sha }}
-            
+
             ### 硬件配置
             - 芯片: ESP32-S3
             - Flash: 8MB
             - PSRAM: 64MB Octal
             - 无 OLED 显示屏
-            
+
+            ### 分区配置 (v1.5.2 兼容)
+            - bootloader @ 0x0
+            - partition table @ 0x8000
+            - ota_data @ 0xd000
+            - ota_0 (app) @ 0x100000
+
             ### 文件说明
             - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
-            
+
             ### 一键刷入命令（推荐）
             ```bash
             esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
