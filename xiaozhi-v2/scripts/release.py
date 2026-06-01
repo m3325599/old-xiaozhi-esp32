@@ -65,7 +65,7 @@ def merge_bin() -> None:
           "0x0 build/bootloader/bootloader.bin " \
           "0x8000 build/partition_table/partition-table.bin " \
           "0xd000 build/ota_data_initial.bin " \
-          "0x20000 build/xiaozhi.bin"
+          "0x100000 build/xiaozhi.bin"
     
     print(f"Running: {cmd}")
     if os.system(cmd) != 0:
