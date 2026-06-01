@@ -88,6 +88,8 @@ set(EMOTE_RESOLUTION "320_240")
 if(CONFIG_BOARD_TYPE_WEIWU_X1_WIFI)
     set(BOARD_TYPE "weiwu-x1-wifi")
     # 禁用显示相关源文件（该板卡无显示屏），但保留基础的 display.cc
+    # 禁用字体组件（该板卡无显示屏）
+    set(BUILTIN_ICON_FONT "")
     list(REMOVE_ITEM SOURCES
         "display/lcd_display.cc"
         "display/oled_display.cc"
