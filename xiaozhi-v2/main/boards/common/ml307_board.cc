@@ -7,7 +7,6 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <font_awesome.h>
 #include <utility>
 
 static const char *TAG = "Ml307Board";
@@ -146,23 +145,23 @@ NetworkInterface* Ml307Board::GetNetwork() {
 
 const char* Ml307Board::GetNetworkStateIcon() {
     if (modem_ == nullptr || !modem_->network_ready()) {
-        return FONT_AWESOME_SIGNAL_OFF;
+        return "\uF1F6";
     }
     int csq = modem_->GetCsq();
     if (csq == -1) {
-        return FONT_AWESOME_SIGNAL_OFF;
+        return "\uF1F6";
     } else if (csq >= 0 && csq <= 9) {
-        return FONT_AWESOME_SIGNAL_WEAK;
+        return "\uF7D9";
     } else if (csq >= 10 && csq <= 14) {
-        return FONT_AWESOME_SIGNAL_FAIR;
+        return "\uF7DA";
     } else if (csq >= 15 && csq <= 19) {
-        return FONT_AWESOME_SIGNAL_GOOD;
+        return "\uF7DB";
     } else if (csq >= 20 && csq <= 31) {
-        return FONT_AWESOME_SIGNAL_STRONG;
+        return "\uF7DC";
     }
 
     ESP_LOGW(TAG, "Invalid CSQ: %d", csq);
-    return FONT_AWESOME_SIGNAL_OFF;
+    return "\uF1F6";
 }
 
 std::string Ml307Board::GetBoardJson() {

@@ -12,7 +12,6 @@
 #include <esp_log.h>
 #include <utility>
 
-#include <font_awesome.h>
 #include <wifi_manager.h>
 #include <wifi_station.h>
 #include <ssid_manager.h>
@@ -250,19 +249,19 @@ const char* WifiBoard::GetNetworkStateIcon() {
     auto& wifi = WifiManager::GetInstance();
 
     if (wifi.IsConfigMode()) {
-        return FONT_AWESOME_WIFI;
+        return "\uF1EB";
     }
     if (!wifi.IsConnected()) {
-        return FONT_AWESOME_WIFI_SLASH;
+        return "\uF1F6";
     }
 
     int rssi = wifi.GetRssi();
     if (rssi >= -65) {
-        return FONT_AWESOME_WIFI;
+        return "\uF1EB";
     } else if (rssi >= -75) {
-        return FONT_AWESOME_WIFI_FAIR;
+        return "\uF1F7";
     }
-    return FONT_AWESOME_WIFI_WEAK;
+    return "\uF1F8";
 }
 
 std::string WifiBoard::GetBoardJson() {
