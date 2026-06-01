@@ -3,6 +3,7 @@
 #include "application.h"
 #include "audio_codec.h"
 #include <esp_log.h>
+#include <font_awesome.h>
 #include <cJSON.h>
 
 #define TAG "Nt26Board"
@@ -142,21 +143,21 @@ NetworkInterface* Nt26Board::GetNetwork() {
 
 const char* Nt26Board::GetNetworkStateIcon() {
     if (modem_ == nullptr || !modem_->IsInitialized()) {
-        return "\uF1F6";
+        return FONT_AWESOME_SIGNAL_OFF;
     }
     int csq = modem_->GetSignalStrength();
     if (csq == 99 || csq == -1) {
-        return "\uF1F6";
+        return FONT_AWESOME_SIGNAL_OFF;
     } else if (csq >= 0 && csq <= 9) {
-        return "\uF7D9";
+        return FONT_AWESOME_SIGNAL_WEAK;
     } else if (csq >= 10 && csq <= 14) {
-        return "\uF7DA";
+        return FONT_AWESOME_SIGNAL_FAIR;
     } else if (csq >= 15 && csq <= 19) {
-        return "\uF7DB";
+        return FONT_AWESOME_SIGNAL_GOOD;
     } else if (csq >= 20 && csq <= 31) {
-        return "\uF7DC";
+        return FONT_AWESOME_SIGNAL_STRONG;
     }
-    return "\uF1F6";
+    return FONT_AWESOME_SIGNAL_OFF;
 }
 
 void Nt26Board::SetPowerSaveLevel(PowerSaveLevel level) {

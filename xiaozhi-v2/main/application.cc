@@ -15,6 +15,7 @@
 #include <cJSON.h>
 #include <driver/gpio.h>
 #include <arpa/inet.h>
+#include <font_awesome.h>
 
 #define TAG "Application"
 

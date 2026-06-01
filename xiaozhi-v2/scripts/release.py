@@ -25,8 +25,8 @@ def get_board_type_from_compile_commands() -> Optional[str]:
         if not item["file"].endswith("main.cc"):
             continue
         cmd = item["command"]
-        if "-DBOARD_TYPE=\"" in cmd:
-            return cmd.split("-DBOARD_TYPE=\"")[1].split("\"")[0].strip()
+        if "-DBOARD_TYPE=\\\"" in cmd:
+            return cmd.split("-DBOARD_TYPE=\\\"")[1].split("\\\"")[0].strip()
     return None
 
 
@@ -48,12 +48,24 @@ def merge_bin() -> None:
         print("esptool.py not found in PATH", file=sys.stderr)
         sys.exit(1)
     
+    required_files = [
+        "build/bootloader/bootloader.bin",
+        "build/partition_table/partition-table.bin",
+        "build/ota_data_initial.bin",
+        "build/xiaozhi.bin"
+    ]
+    
+    for f in required_files:
+        if not Path(f).exists():
+            print(f"Required file not found: {f}", file=sys.stderr)
+            sys.exit(1)
+    
     cmd = f"{esptool_path} --chip esp32s3 merge_bin -o build/merged-binary.bin " \
           "--flash_mode dio --flash_size 8MB --flash_freq 80m " \
           "0x0 build/bootloader/bootloader.bin " \
           "0x8000 build/partition_table/partition-table.bin " \
           "0xd000 build/ota_data_initial.bin " \
-          "0x100000 build/xiaozhi.bin"
+          "0x20000 build/xiaozhi.bin"
     
     print(f"Running: {cmd}")
     if os.system(cmd) != 0:
@@ -74,7 +86,6 @@ def zip_bin(name: str, version: str) -> None:
         zipf.write("build/merged-binary.bin", arcname="merged-binary.bin")
     print(f"zip bin to {output_path} done")
 
-
 def _get_manufacturer(cfg: dict) -> Optional[str]:
     """Read manufacturer from config.json"""
     m = cfg.get("manufacturer")
@@ -87,7 +98,6 @@ def _get_manufacturer(cfg: dict) -> Optional[str]:
 ################################################################################
 
 _BOARDS_DIR = Path("main/boards")
-
 
 def _collect_variants(config_filename: str = "config.json") -> list[dict[str, str]]:
     """Traverse all boards under main/boards, collect variant information.
@@ -159,7 +169,7 @@ def _collect_variants(config_filename: str = "config.json") -> list[dict[str, st
 
 
 def _find_board_config_candidates(board_type: str) -> list[str]:
-    """Find all CONFIG_BOARD_TYPE_* candidates for the given board_type."""
+    """Find all CONFIG_BOARD_TYPE_xxx candidates for the given board_type."""
     board_leaf = board_type.split("/")[-1]
     pattern = f'set(BOARD_TYPE "{board_leaf}")'
 
@@ -179,7 +189,7 @@ def _find_board_config_candidates(board_type: str) -> list[str]:
 
 
 def _extract_board_config_from_sdkconfig_append(sdkconfig_append: list[str]) -> Optional[str]:
-    """Extract explicit CONFIG_BOARD_TYPE_* from sdkconfig_append, if present."""
+    """Extract explicit CONFIG_BOARD_TYPE_xxx=y from sdkconfig_append, if present."""
     pattern = re.compile(r"^(CONFIG_BOARD_TYPE_[A-Z0-9_]+)=y$")
     matches = []
     for item in sdkconfig_append:
@@ -218,7 +228,7 @@ def _symbol_supports_target(symbol: str, target: str) -> bool:
 
 
 def _resolve_board_config(board_type: str, target: str, sdkconfig_append: list[str]) -> str:
-    """Resolve CONFIG_BOARD_TYPE_* for current board build."""
+    """Resolve CONFIG_BOARD_TYPE_xxx for current board build."""
     explicit = _extract_board_config_from_sdkconfig_append(sdkconfig_append)
     if explicit:
         return explicit
@@ -323,7 +333,7 @@ def _board_type_exists(board_type: str) -> bool:
 ################################################################################
 
 def release(board_type: str, config_filename: str = "config.json", *, filter_name: Optional[str] = None) -> None:
-    """Compile and package all/specified variants of the specified board type
+    """Compile and package all/specified variants of the specified board_type
 
     Args:
         board_type: directory name under main/boards
