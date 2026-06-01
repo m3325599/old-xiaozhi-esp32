@@ -3,8 +3,7 @@
 
 #include "emoji_collection.h"
 
-#if defined(CONFIG_DISPLAY_ENABLE) && !defined(CONFIG_USE_EMOTE_MESSAGE_STYLE)
-// Only define HAVE_LVGL for boards with display and not using emote message style
+#ifndef CONFIG_USE_EMOTE_MESSAGE_STYLE
 #define HAVE_LVGL 1
 #include <lvgl.h>
 #endif

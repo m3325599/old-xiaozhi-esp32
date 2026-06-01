@@ -87,23 +87,8 @@ set(EMOTE_RESOLUTION "320_240")
 # Set default assets if the board uses partition table V2
 if(CONFIG_BOARD_TYPE_WEIWU_X1_WIFI)
     set(BOARD_TYPE "weiwu-x1-wifi")
-    # 禁用显示相关源文件（该板卡无显示屏），但保留基础的 display.cc
-    # 禁用字体组件（该板卡无显示屏）
-    set(BUILTIN_ICON_FONT "")
-    list(REMOVE_ITEM SOURCES
-        "display/lcd_display.cc"
-        "display/oled_display.cc"
-        "display/lvgl_display/lvgl_display.cc"
-        "display/emote_display.cc"
-        "display/lvgl_display/emoji_collection.cc"
-        "display/lvgl_display/lvgl_theme.cc"
-        "display/lvgl_display/lvgl_font.cc"
-        "display/lvgl_display/lvgl_image.cc"
-        "display/lvgl_display/gif/lvgl_gif.cc"
-        "display/lvgl_display/gif/gifdec.c"
-        "display/lvgl_display/jpg/image_to_jpeg.cpp"
-        "display/lvgl_display/jpg/jpeg_to_image.c"
-    )
+    set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)
+    set(BUILTIN_ICON_FONT font_awesome_14_1)
 elseif(CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI)
     set(BOARD_TYPE "bread-compact-wifi")
     set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)

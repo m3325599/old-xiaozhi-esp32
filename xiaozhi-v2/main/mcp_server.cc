@@ -12,14 +12,11 @@
 
 #include "application.h"
 #include "display.h"
+#include "oled_display.h"
 #include "board.h"
 #include "settings.h"
-
-#ifdef HAVE_LVGL
-#include "oled_display.h"
 #include "lvgl_theme.h"
 #include "lvgl_display.h"
-#endif
 
 #define TAG "MCP"
 
