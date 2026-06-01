@@ -39,7 +39,8 @@ jobs:
           # 使用 v1.5.2 兼容的 sdkconfig
           cp sdkconfig.defaults.weiwu-x1-wifi sdkconfig.defaults
 
-          python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
+          # 执行构建并保存日志
+          python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi 2>&1 | tee build_output.log
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -53,7 +54,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs-weiwu-x1-wifi
-          path: xiaozhi-v2/build/logs/
+          path: |
+            xiaozhi-v2/build/logs/
+            xiaozhi-v2/build_output.log
           if-no-files-found: ignore
 
       - name: Create Release
