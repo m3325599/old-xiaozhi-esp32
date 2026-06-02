@@ -25,8 +25,18 @@ def get_project_version():
                 return line.split("\"")[1].split("\"")[0].strip()
     return None
 
-def merge_bin():
-    if os.system("idf.py merge-bin") != 0:
+def merge_bin_with_flash_size(flash_size="8MB"):
+    """用 esptool 手动合并固件并强制指定 Flash 大小"""
+    print(f"用 esptool 合并固件，强制指定 Flash 大小为 {flash_size}...")
+    
+    esptool_cmd = "esptool.py --chip esp32s3 merge-bin -o build/merged-binary.bin "
+    esptool_cmd += f"--flash_mode dio --flash_size {flash_size} --flash_freq 80m "
+    esptool_cmd += "0x0 build/bootloader/bootloader.bin "
+    esptool_cmd += "0x8000 build/partition_table/partition-table.bin "
+    esptool_cmd += "0xd000 build/ota_data_initial.bin "
+    esptool_cmd += "0x60000 build/xiaozhi.bin"
+    
+    if os.system(esptool_cmd) != 0:
         print("merge bin failed")
         sys.exit(1)
 
@@ -42,7 +52,7 @@ def zip_bin(board_type, project_version):
     
 
 def release_current():
-    merge_bin()
+    merge_bin_with_flash_size()
     board_type = get_board_type()
     print("board type:", board_type)
     project_version = get_project_version()
@@ -134,10 +144,8 @@ def release(board_type, board_config):
         if os.system(f"idf.py -DBOARD_NAME={name} build") != 0:
             print("build failed")
             sys.exit(1)
-        # Call merge-bin
-        if os.system("idf.py merge-bin") != 0:
-            print("merge-bin failed")
-            sys.exit(1)
+        # =========== 关键修复：用 esptool 手动合并并强制指定 8MB Flash ===========
+        merge_bin_with_flash_size("8MB")
         # Zip bin
         zip_bin(name, project_version)
         print("-" * 80)
