@@ -9,6 +9,7 @@ on:
       - 'partitions*.csv'
       - 'scripts/**'
       - '.github/workflows/**'
+      - 'CMakeLists.txt'
   workflow_dispatch:
 
 permissions:
@@ -34,15 +35,24 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           source $IDF_PATH/export.sh
+          
+          # 修改 CMakeLists.txt 添加编译序号
+          sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
+          echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
+          
+          # 设置 Flash 大小为 8MB
+          echo "设置 Flash 大小为 8MB..."
+          
           idf.py set-target esp32s3
           idf.py fullclean
           
-          # 关键修复：显式设置 8MB Flash 大小（必须在 set-target 之后）
-          echo "Setting Flash size to 8MB..."
-          idf.py -DSDKCONFIG_DEFAULTS_CONFIGS="CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" reconfigure || true
-          
           # 确保 sdkconfig 中设置为 8MB
+          echo "" >> sdkconfig
+          echo "# 强制设置 Flash 大小为 8MB" >> sdkconfig
           echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig
+          
+          # 验证 Flash 大小设置
+          grep "ESPTOOLPY_FLASHSIZE" sdkconfig || echo "未找到 ESPTOOLPY_FLASHSIZE 配置"
           
           # 构建
           python scripts/release.py weiwu-x1-wifi
@@ -51,6 +61,9 @@ jobs:
           if [ -f build/merged-binary.bin ]; then
             mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
             echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
+            
+            # 检查固件大小
+            ls -lh build/weiwu-x1-wifi-$BUILD_NUMBER.bin
           fi
 
       - name: Upload artifacts
@@ -85,6 +98,9 @@ jobs:
             - Flash: 8MB
             - PSRAM: 64MB Octal
             - 无 OLED 显示屏
+            
+            ### 串口日志识别
+            - 版本号会显示为: `1.5.2-build-${{ github.run_number }}`
             
             ### 文件说明
             - **weiwu-x1-wifi-${{ github.run_number }}.bin**: 一键刷入固件（推荐，包含所有分区）
