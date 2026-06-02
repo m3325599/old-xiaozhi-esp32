@@ -25,18 +25,8 @@ def get_project_version():
                 return line.split("\"")[1].split("\"")[0].strip()
     return None
 
-def merge_bin_with_flash_size(flash_size="8MB"):
-    """用 esptool 手动合并固件并强制指定 Flash 大小"""
-    print(f"用 esptool 合并固件，强制指定 Flash 大小为 {flash_size}...")
-    
-    esptool_cmd = "esptool.py --chip esp32s3 merge-bin -o build/merged-binary.bin "
-    esptool_cmd += f"--flash_mode dio --flash_size {flash_size} --flash_freq 80m "
-    esptool_cmd += "0x0 build/bootloader/bootloader.bin "
-    esptool_cmd += "0x8000 build/partition_table/partition-table.bin "
-    esptool_cmd += "0xd000 build/ota_data_initial.bin "
-    esptool_cmd += "0x60000 build/xiaozhi.bin"
-    
-    if os.system(esptool_cmd) != 0:
+def merge_bin():
+    if os.system("idf.py merge-bin") != 0:
         print("merge bin failed")
         sys.exit(1)
 
@@ -52,7 +42,7 @@ def zip_bin(board_type, project_version):
     
 
 def release_current():
-    merge_bin_with_flash_size()
+    merge_bin()
     board_type = get_board_type()
     print("board type:", board_type)
     project_version = get_project_version()
@@ -73,26 +63,6 @@ def get_all_board_types():
                     board_type = next_line.split('"')[1]
                     board_configs[config_name] = board_type
     return board_configs
-
-def ensure_flash_size_8mb():
-    """确保 Flash 大小为 8MB"""
-    print("确保 Flash 大小为 8MB...")
-    
-    # 修改 sdkconfig.defaults
-    with open("sdkconfig.defaults", "r") as f:
-        content = f.read()
-    
-    # 删除 16MB 配置
-    content = content.replace("CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y", "# CONFIG_ESPTOOLPY_FLASHSIZE_16MB is not set")
-    
-    # 确保 8MB 配置存在
-    if "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" not in content:
-        content += "\nCONFIG_ESPTOOLPY_FLASHSIZE_8MB=y\n"
-    
-    with open("sdkconfig.defaults", "w") as f:
-        f.write(content)
-    
-    print("已确保 sdkconfig.defaults 中只有 8MB Flash 配置")
 
 def release(board_type, board_config):
     config_path = f"main/boards/{board_type}/config.json"
@@ -127,10 +97,6 @@ def release(board_type, board_config):
             print(f"sdkconfig_append: {append}")
         # unset IDF_TARGET
         os.environ.pop("IDF_TARGET", None)
-        
-        # =========== 关键修复：在 set-target 之前确保 8MB Flash 配置 ===========
-        ensure_flash_size_8mb()
-        
         # Call set-target
         if os.system(f"idf.py set-target {target}") != 0:
             print("set-target failed")
@@ -144,8 +110,10 @@ def release(board_type, board_config):
         if os.system(f"idf.py -DBOARD_NAME={name} build") != 0:
             print("build failed")
             sys.exit(1)
-        # =========== 关键修复：用 esptool 手动合并并强制指定 8MB Flash ===========
-        merge_bin_with_flash_size("8MB")
+        # Call merge-bin
+        if os.system("idf.py merge-bin") != 0:
+            print("merge-bin failed")
+            sys.exit(1)
         # Zip bin
         zip_bin(name, project_version)
         print("-" * 80)

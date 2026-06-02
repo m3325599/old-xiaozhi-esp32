@@ -36,17 +36,11 @@ jobs:
         run: |
           source $IDF_PATH/export.sh
           
-          # 修改 CMakeLists.txt 添加编译序号
+          # ========== 关键：只修改 CMakeLists.txt 添加编译序号，其他保持原样 ==========
           sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
           echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
           
-          # 初始化目标
-          idf.py set-target esp32s3
-          
-          # 清理
-          idf.py fullclean
-          
-          # 构建（release.py 会在 set-target 之前确保 8MB 配置）
+          # ========== 关键：完全按照 #105 的流程，什么都不改 ==========
           python scripts/release.py weiwu-x1-wifi
           
           # 重命名固件文件，添加编译序号
