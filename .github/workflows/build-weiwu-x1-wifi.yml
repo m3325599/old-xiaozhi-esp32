@@ -41,7 +41,6 @@ jobs:
           echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
           
           # =========== 关键修复：先配置好 sdkconfig.defaults ===========
-          # 确保 sdkconfig.defaults 中只有 8MB
           echo "确保 sdkconfig.defaults 中只有 8MB Flash..."
           
           # 删除任何 16MB 配置
@@ -68,14 +67,15 @@ jobs:
           # 构建
           idf.py build
           
-          # 手动合并固件，指定 8MB Flash
-          echo "手动合并固件，指定 8MB Flash..."
-          esptool.py --chip esp32s3 merge-bin -o "build/weiwu-x1-wifi-$BUILD_NUMBER.bin" \
-            --flash_mode dio --flash_size 8MB --flash_freq 80m \
-            0x0 build/bootloader/bootloader.bin \
-            0x8000 build/partition_table/partition-table.bin \
-            0xd000 build/ota_data_initial.bin \
-            0x60000 build/xiaozhi.bin
+          # 检查构建产物
+          echo "构建产物列表:"
+          ls -la build/
+          ls -la build/bootloader/ 2>/dev/null || echo "bootloader 目录不存在"
+          ls -la build/partition_table/ 2>/dev/null || echo "partition_table 目录不存在"
+          
+          # 使用 idf.py merge-bin 合并（使用正确配置的 sdkconfig）
+          echo "使用 idf.py merge-bin 合并固件..."
+          idf.py merge-bin -o "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
           
           # 检查固件大小
           ls -lh "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
