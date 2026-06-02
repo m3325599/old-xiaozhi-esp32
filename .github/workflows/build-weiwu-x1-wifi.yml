@@ -34,60 +34,29 @@ jobs:
         env:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          set -e
-          
           source $IDF_PATH/export.sh
           
-          echo "=== 1. 修改版本号 ==="
+          # 修改 CMakeLists.txt 添加编译序号
           sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
-          echo "版本号: 1.5.2-build-$BUILD_NUMBER"
+          echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
           
-          echo ""
-          echo "=== 2. 配置 sdkconfig.defaults ==="
-          echo "删除 16MB 配置..."
-          sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig.defaults || echo "没有找到 16MB 配置"
-          
-          echo "确保 8MB 配置存在..."
-          if grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig.defaults; then
-              echo "8MB 配置已存在"
-          else
-              echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig.defaults
-              echo "已添加 8MB 配置"
-          fi
-          
-          echo ""
-          echo "=== 3. 验证配置 ==="
-          echo "sdkconfig.defaults:"
-          grep "ESPTOOLPY_FLASHSIZE" sdkconfig.defaults
-          
-          echo ""
-          echo "=== 4. 设置目标 ==="
+          # 初始化目标
           idf.py set-target esp32s3
           
-          echo ""
-          echo "=== 5. 清理 ==="
+          # 清理
           idf.py fullclean
           
-          echo ""
-          echo "=== 6. 重新配置 ==="
-          idf.py reconfigure
+          # 构建（release.py 会在 set-target 之前确保 8MB 配置）
+          python scripts/release.py weiwu-x1-wifi
           
-          echo ""
-          echo "=== 7. 验证生成的 sdkconfig ==="
-          echo "sdkconfig:"
-          grep "ESPTOOLPY_FLASHSIZE" sdkconfig
-          
-          echo ""
-          echo "=== 8. 构建 ==="
-          idf.py build 2>&1 | tail -50 || exit 1
-          
-          echo ""
-          echo "=== 9. 合并固件 ==="
-          idf.py merge-bin -o "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
-          
-          echo ""
-          echo "=== 10. 检查固件 ==="
-          ls -lh "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
+          # 重命名固件文件，添加编译序号
+          if [ -f build/merged-binary.bin ]; then
+              mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
+              echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
+              
+              # 检查固件大小
+              ls -lh build/weiwu-x1-wifi-$BUILD_NUMBER.bin
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

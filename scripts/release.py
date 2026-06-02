@@ -14,7 +14,7 @@ def get_board_type():
                 continue
             command = item["command"]
             # extract -DBOARD_TYPE=xxx
-            board_type = command.split("-DBOARD_TYPE=\\\"")[1].split("\\\"")[0].strip()
+            board_type = command.split("-DBOARD_TYPE=\"")[1].split("\"")[0].strip()
             return board_type
     return None
 
@@ -64,6 +64,26 @@ def get_all_board_types():
                     board_configs[config_name] = board_type
     return board_configs
 
+def ensure_flash_size_8mb():
+    """确保 Flash 大小为 8MB"""
+    print("确保 Flash 大小为 8MB...")
+    
+    # 修改 sdkconfig.defaults
+    with open("sdkconfig.defaults", "r") as f:
+        content = f.read()
+    
+    # 删除 16MB 配置
+    content = content.replace("CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y", "# CONFIG_ESPTOOLPY_FLASHSIZE_16MB is not set")
+    
+    # 确保 8MB 配置存在
+    if "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" not in content:
+        content += "\nCONFIG_ESPTOOLPY_FLASHSIZE_8MB=y\n"
+    
+    with open("sdkconfig.defaults", "w") as f:
+        f.write(content)
+    
+    print("已确保 sdkconfig.defaults 中只有 8MB Flash 配置")
+
 def release(board_type, board_config):
     config_path = f"main/boards/{board_type}/config.json"
     if not os.path.exists(config_path):
@@ -97,6 +117,10 @@ def release(board_type, board_config):
             print(f"sdkconfig_append: {append}")
         # unset IDF_TARGET
         os.environ.pop("IDF_TARGET", None)
+        
+        # =========== 关键修复：在 set-target 之前确保 8MB Flash 配置 ===========
+        ensure_flash_size_8mb()
+        
         # Call set-target
         if os.system(f"idf.py set-target {target}") != 0:
             print("set-target failed")
