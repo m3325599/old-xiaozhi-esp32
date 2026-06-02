@@ -40,48 +40,45 @@ jobs:
           sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
           echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
           
-          # 初始化目标
-          idf.py set-target esp32s3
+          # =========== 关键修复：先配置好 sdkconfig.defaults ===========
+          # 确保 sdkconfig.defaults 中只有 8MB
+          echo "确保 sdkconfig.defaults 中只有 8MB Flash..."
           
-          # 清理
-          idf.py fullclean
-          
-          # =========== 关键修复：强制修改 sdkconfig ===========
-          echo "强制设置 Flash 大小为 8MB..."
-          
-          # 确保 sdkconfig 中禁用 16MB，启用 8MB
-          if [ -f sdkconfig ]; then
-              # 禁用 16MB
-              sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig
-              sed -i 's/CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y/# CONFIG_ESPTOOLPY_FLASHSIZE_16MB is not set/' sdkconfig || true
-              
-              # 启用 8MB
-              if ! grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig; then
-                  echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig
-              fi
-          fi
-          
-          # 同时修改 sdkconfig.defaults
-          echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig.defaults
+          # 删除任何 16MB 配置
           sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig.defaults
           
-          # 验证 Flash 大小设置
-          echo "验证 sdkconfig 中的 Flash 设置："
-          grep -n "ESPTOOLPY_FLASHSIZE" sdkconfig || true
-          echo "验证 sdkconfig.defaults 中的 Flash 设置："
-          grep -n "ESPTOOLPY_FLASHSIZE" sdkconfig.defaults || true
+          # 确保 8MB 配置存在
+          if ! grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig.defaults; then
+              echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig.defaults
+          fi
+          
+          # 验证
+          echo "sdkconfig.defaults 中的 Flash 设置:"
+          grep "ESPTOOLPY_FLASHSIZE" sdkconfig.defaults
+          
+          # =========== 现在才初始化目标并编译 ===========
+          idf.py set-target esp32s3
+          idf.py fullclean
+          idf.py reconfigure
+          
+          # 验证生成的 sdkconfig
+          echo "生成的 sdkconfig 中的 Flash 设置:"
+          grep "ESPTOOLPY_FLASHSIZE" sdkconfig
           
           # 构建
-          python scripts/release.py weiwu-x1-wifi
+          idf.py build
           
-          # 重命名固件文件，添加编译序号
-          if [ -f build/merged-binary.bin ]; then
-              mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
-              echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
-              
-              # 检查固件大小
-              ls -lh build/weiwu-x1-wifi-$BUILD_NUMBER.bin
-          fi
+          # 手动合并固件，指定 8MB Flash
+          echo "手动合并固件，指定 8MB Flash..."
+          esptool.py --chip esp32s3 merge-bin -o "build/weiwu-x1-wifi-$BUILD_NUMBER.bin" \
+            --flash_mode dio --flash_size 8MB --flash_freq 80m \
+            0x0 build/bootloader/bootloader.bin \
+            0x8000 build/partition_table/partition-table.bin \
+            0xd000 build/ota_data_initial.bin \
+            0x60000 build/xiaozhi.bin
+          
+          # 检查固件大小
+          ls -lh "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
