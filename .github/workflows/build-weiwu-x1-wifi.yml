@@ -30,24 +30,41 @@ jobs:
       - name: Build Weiwu X1 WiFi
         shell: bash
         working-directory: .
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
           idf.py fullclean
+          
+          # 关键修复：显式设置 8MB Flash 大小（必须在 set-target 之后）
+          echo "Setting Flash size to 8MB..."
+          idf.py -DSDKCONFIG_DEFAULTS_CONFIGS="CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" reconfigure || true
+          
+          # 确保 sdkconfig 中设置为 8MB
+          echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig
+          
+          # 构建
           python scripts/release.py weiwu-x1-wifi
+          
+          # 重命名固件文件，添加编译序号
+          if [ -f build/merged-binary.bin ]; then
+            mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
+            echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: weiwu-x1-wifi
-          path: build/merged-binary.bin
+          name: weiwu-x1-wifi-${{ github.run_number }}
+          path: build/weiwu-x1-wifi-${{ github.run_number }}.bin
           if-no-files-found: error
 
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-weiwu-x1-wifi
+          name: build-logs-weiwu-x1-wifi-${{ github.run_number }}
           path: build/logs/
           if-no-files-found: ignore
 
@@ -70,14 +87,14 @@ jobs:
             - 无 OLED 显示屏
             
             ### 文件说明
-            - **merged-binary.bin**: 一键刷入固件（推荐，包含所有分区）
+            - **weiwu-x1-wifi-${{ github.run_number }}.bin**: 一键刷入固件（推荐，包含所有分区）
             
             ### 一键刷入命令（推荐）
             ```bash
-            esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
+            esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 weiwu-x1-wifi-${{ github.run_number }}.bin
             ```
           files: |
-            build/merged-binary.bin
+            build/weiwu-x1-wifi-${{ github.run_number }}.bin
           draft: false
           prerelease: false
         env:
