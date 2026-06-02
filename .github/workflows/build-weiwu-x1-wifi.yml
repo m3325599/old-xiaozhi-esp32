@@ -40,30 +40,47 @@ jobs:
           sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
           echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
           
-          # 设置 Flash 大小为 8MB
-          echo "设置 Flash 大小为 8MB..."
-          
+          # 初始化目标
           idf.py set-target esp32s3
+          
+          # 清理
           idf.py fullclean
           
-          # 确保 sdkconfig 中设置为 8MB
-          echo "" >> sdkconfig
-          echo "# 强制设置 Flash 大小为 8MB" >> sdkconfig
-          echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig
+          # =========== 关键修复：强制修改 sdkconfig ===========
+          echo "强制设置 Flash 大小为 8MB..."
+          
+          # 确保 sdkconfig 中禁用 16MB，启用 8MB
+          if [ -f sdkconfig ]; then
+              # 禁用 16MB
+              sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig
+              sed -i 's/CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y/# CONFIG_ESPTOOLPY_FLASHSIZE_16MB is not set/' sdkconfig || true
+              
+              # 启用 8MB
+              if ! grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig; then
+                  echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig
+              fi
+          fi
+          
+          # 同时修改 sdkconfig.defaults
+          echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig.defaults
+          sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig.defaults
           
           # 验证 Flash 大小设置
-          grep "ESPTOOLPY_FLASHSIZE" sdkconfig || echo "未找到 ESPTOOLPY_FLASHSIZE 配置"
+          echo "验证 sdkconfig 中的 Flash 设置："
+          grep -n "ESPTOOLPY_FLASHSIZE" sdkconfig || true
+          echo "验证 sdkconfig.defaults 中的 Flash 设置："
+          grep -n "ESPTOOLPY_FLASHSIZE" sdkconfig.defaults || true
           
           # 构建
           python scripts/release.py weiwu-x1-wifi
           
           # 重命名固件文件，添加编译序号
           if [ -f build/merged-binary.bin ]; then
-            mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
-            echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
-            
-            # 检查固件大小
-            ls -lh build/weiwu-x1-wifi-$BUILD_NUMBER.bin
+              mv build/merged-binary.bin "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
+              echo "固件已重命名为: weiwu-x1-wifi-$BUILD_NUMBER.bin"
+              
+              # 检查固件大小
+              ls -lh build/weiwu-x1-wifi-$BUILD_NUMBER.bin
           fi
 
       - name: Upload artifacts
@@ -115,4 +132,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
