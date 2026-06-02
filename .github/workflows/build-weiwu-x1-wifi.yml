@@ -34,50 +34,59 @@ jobs:
         env:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
+          set -e
+          
           source $IDF_PATH/export.sh
           
-          # 修改 CMakeLists.txt 添加编译序号
+          echo "=== 1. 修改版本号 ==="
           sed -i "s/set(PROJECT_VER \"1.5.2\")/set(PROJECT_VER \"1.5.2-build-$BUILD_NUMBER\")/" CMakeLists.txt
-          echo "已修改版本为: 1.5.2-build-$BUILD_NUMBER"
+          echo "版本号: 1.5.2-build-$BUILD_NUMBER"
           
-          # =========== 关键修复：先配置好 sdkconfig.defaults ===========
-          echo "确保 sdkconfig.defaults 中只有 8MB Flash..."
+          echo ""
+          echo "=== 2. 配置 sdkconfig.defaults ==="
+          echo "删除 16MB 配置..."
+          sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig.defaults || echo "没有找到 16MB 配置"
           
-          # 删除任何 16MB 配置
-          sed -i '/CONFIG_ESPTOOLPY_FLASHSIZE_16MB/d' sdkconfig.defaults
-          
-          # 确保 8MB 配置存在
-          if ! grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig.defaults; then
+          echo "确保 8MB 配置存在..."
+          if grep -q "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" sdkconfig.defaults; then
+              echo "8MB 配置已存在"
+          else
               echo "CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y" >> sdkconfig.defaults
+              echo "已添加 8MB 配置"
           fi
           
-          # 验证
-          echo "sdkconfig.defaults 中的 Flash 设置:"
+          echo ""
+          echo "=== 3. 验证配置 ==="
+          echo "sdkconfig.defaults:"
           grep "ESPTOOLPY_FLASHSIZE" sdkconfig.defaults
           
-          # =========== 现在才初始化目标并编译 ===========
+          echo ""
+          echo "=== 4. 设置目标 ==="
           idf.py set-target esp32s3
+          
+          echo ""
+          echo "=== 5. 清理 ==="
           idf.py fullclean
+          
+          echo ""
+          echo "=== 6. 重新配置 ==="
           idf.py reconfigure
           
-          # 验证生成的 sdkconfig
-          echo "生成的 sdkconfig 中的 Flash 设置:"
+          echo ""
+          echo "=== 7. 验证生成的 sdkconfig ==="
+          echo "sdkconfig:"
           grep "ESPTOOLPY_FLASHSIZE" sdkconfig
           
-          # 构建
-          idf.py build
+          echo ""
+          echo "=== 8. 构建 ==="
+          idf.py build 2>&1 | tail -50 || exit 1
           
-          # 检查构建产物
-          echo "构建产物列表:"
-          ls -la build/
-          ls -la build/bootloader/ 2>/dev/null || echo "bootloader 目录不存在"
-          ls -la build/partition_table/ 2>/dev/null || echo "partition_table 目录不存在"
-          
-          # 使用 idf.py merge-bin 合并（使用正确配置的 sdkconfig）
-          echo "使用 idf.py merge-bin 合并固件..."
+          echo ""
+          echo "=== 9. 合并固件 ==="
           idf.py merge-bin -o "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
           
-          # 检查固件大小
+          echo ""
+          echo "=== 10. 检查固件 ==="
           ls -lh "build/weiwu-x1-wifi-$BUILD_NUMBER.bin"
 
       - name: Upload artifacts
