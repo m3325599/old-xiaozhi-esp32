@@ -39,6 +39,46 @@ def get_project_version() -> Optional[str]:
     return None
 
 
+def build_assets() -> None:
+    """Build assets.bin (srmodels, fonts, etc.) and place it in build/assets.bin"""
+    import shutil
+    
+    build_assets_script = Path(__file__).parent / "build_default_assets.py"
+    if not build_assets_script.exists():
+        print(f"Warning: {build_assets_script} not found, skipping assets build")
+        return
+    
+    cmd = f"python3 {build_assets_script} --sdkconfig sdkconfig --output build/assets.bin"
+    
+    # Try to find ESP-SR model path
+    for model_path in [
+        Path("managed_components") / "espressif__esp-sr" / "model",
+        Path("managed_components") / "espressif_esp-sr" / "model",
+        Path("components") / "esp-sr" / "model"
+    ]:
+        if model_path.exists():
+            cmd += f" --esp_sr_model_path {model_path}"
+            break
+    
+    # Try to find xiaozhi-fonts path
+    for fonts_path in [
+        Path("components") / "xiaozhi-fonts",
+        Path("managed_components") / "78__xiaozhi-fonts",
+        Path("managed_components") / "xiaozhi-fonts"
+    ]:
+        if fonts_path.exists():
+            cmd += f" --xiaozhi_fonts_path {fonts_path}"
+            break
+    
+    print(f"Running: {cmd}")
+    result = os.system(cmd)
+    if result != 0:
+        print(f"Warning: assets build failed (exit code {result}), continuing without assets partition")
+    elif Path("build/assets.bin").exists():
+        size = Path("build/assets.bin").stat().st_size
+        print(f"assets.bin size: {size} bytes ({size / 1024:.2f} KB)")
+
+
 def merge_bin() -> None:
     import shutil
     esptool_path = shutil.which("esptool.py")
@@ -66,6 +106,10 @@ def merge_bin() -> None:
           "0x8000 build/partition_table/partition-table.bin " \
           "0xd000 build/ota_data_initial.bin " \
           "0x20000 build/xiaozhi.bin"
+    
+    if Path("build/assets.bin").exists():
+        cmd += " 0x600000 build/assets.bin"
+        print("Including assets.bin in merged binary")
     
     print(f"Running: {cmd}")
     if os.system(cmd) != 0:
@@ -413,6 +457,9 @@ def release(board_type: str, config_filename: str = "config.json", *, filter_nam
         if os.system(f"idf.py -DBOARD_NAME={name} -DBOARD_TYPE={board_type} build") != 0:
             print("build failed")
             sys.exit(1)
+
+        # Build assets.bin (srmodels, fonts, etc.)
+        build_assets()
 
         # merge-bin
         merge_bin()
