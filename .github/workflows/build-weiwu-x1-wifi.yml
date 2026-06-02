@@ -1,15 +1,13 @@
-name: Build Weiwu X1 WiFi Firmware (v2.2.6)
-# 2026-05-30: 修复 merge_bin 偏移地址为 0x20000，匹配 8m.csv 分区表
-# + 修复 scripts/release.py merge_bin 偏移
+name: Build Weiwu X1 WiFi Firmware (v1.5.2)
 
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'xiaozhi-v2/main/**'
-      - 'xiaozhi-v2/sdkconfig.defaults*'
-      - 'xiaozhi-v2/partitions/**'
-      - 'xiaozhi-v2/scripts/**'
+      - 'main/**'
+      - 'sdkconfig.defaults*'
+      - 'partitions*.csv'
+      - 'scripts/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -22,7 +20,7 @@ jobs:
     name: Build Weiwu X1 WiFi
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.5.2
+      image: espressif/idf:v5.4.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,18 +29,18 @@ jobs:
 
       - name: Build Weiwu X1 WiFi
         shell: bash
-        working-directory: xiaozhi-v2
+        working-directory: .
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
           idf.py fullclean
-          python scripts/release.py weiwu-x1-wifi --name weiwu-x1-wifi
+          python scripts/release.py weiwu-x1-wifi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: weiwu-x1-wifi
-          path: xiaozhi-v2/build/merged-binary.bin
+          path: build/merged-binary.bin
           if-no-files-found: error
 
       - name: Upload build logs
@@ -50,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs-weiwu-x1-wifi
-          path: xiaozhi-v2/build/logs/
+          path: build/logs/
           if-no-files-found: ignore
 
       - name: Create Release
@@ -60,7 +58,7 @@ jobs:
           tag_name: weiwu-x1-wifi-build-${{ github.run_number }}
           name: Weiwu X1 WiFi Build ${{ github.run_number }}
           body: |
-            ## 微五 X1 WiFi 版固件 - xiaozhi-v2
+            ## 微五 X1 WiFi 版固件 - xiaozhi-v1.5.2
             
             - **构建版本**: ${{ github.run_number }}
             - **Git 提交**: ${{ github.sha }}
@@ -79,8 +77,9 @@ jobs:
             esptool.py --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 merged-binary.bin
             ```
           files: |
-            xiaozhi-v2/build/merged-binary.bin
+            build/merged-binary.bin
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
